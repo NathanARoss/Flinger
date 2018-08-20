@@ -40,10 +40,10 @@ class PhysicsObj {
     }
 
     tick() {
+        this.prevX = this.x;
+        this.prevY = this.y;
+
         if (!this.held) {
-            this.prevX = this.x;
-            this.prevY = this.y;
-    
             this.vy -= 0.002;
             this.x += this.vx;
             this.y += this.vy;
@@ -66,5 +66,10 @@ class PhysicsObj {
                 this.x = aspectRatio / 2 - this.r;
             }
         }
+    }
+
+    setPosition(x, y) {
+        this.x = x;
+        this.y = y;
     }
 }

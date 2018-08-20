@@ -233,12 +233,10 @@ const onpointerdown = (x, y) => {
     this.y = y - 0.5 + camY;
 
     gameLogic.player.held = true;
-    gameLogic.player.prevX = this.x;
-    gameLogic.player.prevY = this.y;
-    gameLogic.player.x = this.x;
-    gameLogic.player.y = this.y;
     gameLogic.player.vx = 0;
     gameLogic.player.vy = 0;
+
+    gameLogic.player.setPosition(this.x, this.y);
 
     //console.log(this.x, this.y);
 }
@@ -250,11 +248,7 @@ const onpointermove = (x, y) => {
     this.x = (x - 0.5) * aspectRatio + camX;
     this.y = y - 0.5 + camY;
 
-    gameLogic.player.prevX = gameLogic.player.x;
-    gameLogic.player.prevY = gameLogic.player.y;
-    gameLogic.player.x = this.x;
-    gameLogic.player.y = this.y;
-
+    gameLogic.player.setPosition(this.x, this.y);
 }
 
 const onpointerup = () => {
