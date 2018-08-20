@@ -52,7 +52,7 @@ const floorModel = initFloor(gl, 0);
 const fishTexture = loadTexture(gl, "fish.png");
 
 let camX = 0;
-let camY = 0.45;
+let camY = 0.5;
 
 
 gl.useProgram(programInfo.program);
@@ -61,7 +61,7 @@ gl.activeTexture(gl.TEXTURE0);
 gl.bindTexture(gl.TEXTURE_2D, fishTexture);
 gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
 
-gl.clearColor(0.0, 0.0, 0.0, 1.0);
+gl.clearColor(0.0, 0.412, 0.58, 1.0);
 gl.enable(gl.DEPTH_TEST);
 
 requestAnimationFrame(drawScene);
@@ -73,7 +73,7 @@ document.body.onresize = function() {
     gl.viewport(0, 0, canvas.width, canvas.height);
 
     aspectRatio = canvas.clientWidth / canvas.clientHeight;
-    Mat4.perspectiveMatrix(perspectiveMatrix, 45.0, aspectRatio, 0.1, 100.0);
+    Mat4.perspectiveMatrix(perspectiveMatrix, 45, aspectRatio, 0.125, 100);
 };
 document.body.onresize();
 
@@ -114,7 +114,7 @@ function loadTexture(gl, url) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
   
-    const pixel = new Uint8Array([0, 0, 255]);
+    const pixel = new Uint8Array([0, 255, 255]);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, pixel);
   
     const image = new Image();
@@ -142,8 +142,16 @@ function drawScene(timestamp) {
 
     const playerX = gameLogic.getX(gameLogic.player, timestamp);
     const playerY = gameLogic.getY(gameLogic.player, timestamp);
-    drawModel(fishModel, [1 / 32, 1 / 32, 1], [playerX, playerY, -1]);
-    drawModel(floorModel, [10, 10, 1], [0, 0, -1]);
+    drawModel(fishModel, 1 / 32, [playerX, playerY]);
+    drawModel(floorModel, 10, [0, 0]);
+
+    /*const scale = 1/256;
+    const zOffset = -0.9;
+    drawModel(fishModel, scale , [-0.5, -0.5]);
+    drawModel(fishModel, scale , [0.5, -0.5]);
+    drawModel(fishModel, scale , [-0.5, 0.5]);
+    drawModel(fishModel, scale , [0.5, 0.5]);
+    drawModel(fishModel, scale , [0, 0]);*/
 
     gl.disableVertexAttribArray(programInfo.attribLocations.position);
     gl.disableVertexAttribArray(programInfo.attribLocations.texCord);
@@ -151,9 +159,9 @@ function drawScene(timestamp) {
     requestAnimationFrame(drawScene);
 }
 
-function drawModel(model, scale, [x, y, z]) {
-    Mat4.translate(modelViewMatrix, Mat4.IDENTITY, [x - camX, y - camY, z]);
-    Mat4.scale(modelViewMatrix, modelViewMatrix, scale);
+function drawModel(model, scale, [x, y]) {
+    Mat4.translate(modelViewMatrix, Mat4.IDENTITY, [x - camX, y - camY, -0.9]);
+    Mat4.scale(modelViewMatrix, modelViewMatrix, [scale, scale, 1]);
 
     Mat4.multiply(tempMatrix, perspectiveMatrix, modelViewMatrix);
     gl.uniformMatrix4fv(programInfo.uniformLocations.mvpMatrix, false, tempMatrix.data);
@@ -231,6 +239,8 @@ const onpointerdown = (x, y) => {
     gameLogic.player.y = this.y;
     gameLogic.player.vx = 0;
     gameLogic.player.vy = 0;
+
+    //console.log(this.x, this.y);
 }
 
 const onpointermove = (x, y) => {

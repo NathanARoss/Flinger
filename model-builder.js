@@ -53,7 +53,6 @@ function initFloor(gl, floorHeight) {
     let i = 0;
 
     for (let [x, y] of [[-100, floorHeight], [100, floorHeight], [0, -100]]) {
-        console.log(x, y);
         model[i++] = x;
         model[i++] = y;
         model[i++] = 50;
