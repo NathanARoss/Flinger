@@ -142,7 +142,7 @@ function drawScene(timestamp) {
 
     const playerX = gameLogic.getX(gameLogic.player, timestamp);
     const playerY = gameLogic.getY(gameLogic.player, timestamp);
-    drawModel(fishModel, 1 / 32, [playerX, playerY]);
+    drawModel(fishModel, gameLogic.player.r, [playerX, playerY]);
     drawModel(floorModel, 10, [0, 0]);
 
     /*const scale = 1/256;
