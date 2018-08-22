@@ -1,5 +1,7 @@
 "use strict";
 
+const debugText = document.getElementById("debugText");
+
 const vsSource =
 `attribute vec4 aPosition;
 attribute vec2 aTexCoord;
@@ -25,7 +27,9 @@ void main(void) {
 let aspectRatio = 1;
 
 const modelViewMatrix = new Mat4();
+const viewMatrix = new Mat4();
 const perspectiveMatrix = new Mat4();
+const viewPerspectiveMatrix = new Mat4();
 const tempMatrix = new Mat4();
 
 const canvas = document.querySelector("canvas");
@@ -48,11 +52,14 @@ const programInfo = {
 const gameLogic = new GameLogic();
 
 const fishModel = initCircleModel(gl, 5);
-const floorModel = initFloor(gl, 0);
+const enivornmentModel = initWalls(gl, 0);
 const fishTexture = loadTexture(gl, "fish.png");
 
-let camX = 0;
-let camY = 0.5;
+let camX = 0.0;
+let camY = 1;
+let camZ = 2;
+let targetX = 0;
+let targetY = 0;
 
 
 gl.useProgram(programInfo.program);
@@ -63,8 +70,6 @@ gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
 
 gl.clearColor(0.0, 0.412, 0.58, 1.0);
 gl.enable(gl.DEPTH_TEST);
-
-requestAnimationFrame(drawScene);
 
 
 document.body.onresize = function() {
@@ -114,11 +119,9 @@ function loadTexture(gl, url) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
   
-    const pixel = new Uint8Array([0, 255, 255]);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, pixel);
-  
     const image = new Image();
     image.src = url;
+
     image.onload = function() {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
@@ -126,7 +129,16 @@ function loadTexture(gl, url) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+        requestAnimationFrame(drawScene);
     };
+
+    image.onerror = function() {
+        const pixel = new Uint8Array([0, 255, 255]);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, pixel);
+
+        requestAnimationFrame(drawScene);
+    }
   
     return texture;
   }
@@ -137,21 +149,22 @@ function drawScene(timestamp) {
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+    const playerX = gameLogic.getX(gameLogic.player, timestamp);
+    const playerY = gameLogic.getY(gameLogic.player, timestamp);
+
+    if (!gameLogic.player.held) {
+        targetX = playerX;
+        targetY = playerY;
+    }
+
+    Mat4.lookAt(viewMatrix, [camX, camY, camZ], [targetX, targetY, 0], [0, 1, 0]);
+    Mat4.multiply(viewPerspectiveMatrix, perspectiveMatrix, viewMatrix);
+
     gl.enableVertexAttribArray(programInfo.attribLocations.position);
     gl.enableVertexAttribArray(programInfo.attribLocations.texCord);
 
-    const playerX = gameLogic.getX(gameLogic.player, timestamp);
-    const playerY = gameLogic.getY(gameLogic.player, timestamp);
     drawModel(fishModel, gameLogic.player.r, [playerX, playerY]);
-    drawModel(floorModel, 10, [0, 0]);
-
-    /*const scale = 1/256;
-    const zOffset = -0.9;
-    drawModel(fishModel, scale , [-0.5, -0.5]);
-    drawModel(fishModel, scale , [0.5, -0.5]);
-    drawModel(fishModel, scale , [-0.5, 0.5]);
-    drawModel(fishModel, scale , [0.5, 0.5]);
-    drawModel(fishModel, scale , [0, 0]);*/
+    drawModel(enivornmentModel, 12.5, [0, 0]);
 
     gl.disableVertexAttribArray(programInfo.attribLocations.position);
     gl.disableVertexAttribArray(programInfo.attribLocations.texCord);
@@ -160,10 +173,10 @@ function drawScene(timestamp) {
 }
 
 function drawModel(model, scale, [x, y]) {
-    Mat4.translate(modelViewMatrix, Mat4.IDENTITY, [x - camX, y - camY, -0.9]);
+    Mat4.translate(modelViewMatrix, Mat4.IDENTITY, [x, y, 0]);
     Mat4.scale(modelViewMatrix, modelViewMatrix, [scale, scale, 1]);
 
-    Mat4.multiply(tempMatrix, perspectiveMatrix, modelViewMatrix);
+    Mat4.multiply(tempMatrix, viewPerspectiveMatrix, modelViewMatrix);
     gl.uniformMatrix4fv(programInfo.uniformLocations.mvpMatrix, false, tempMatrix.data);
     
     gl.bindBuffer(gl.ARRAY_BUFFER, model.buffer);
@@ -188,6 +201,11 @@ function drawModel(model, scale, [x, y]) {
     }
 
     canvas.onmouseup = function(event) {
+        onpointerup();
+        this.down = false;
+    }
+
+    canvas.onmouseleave = function(event) {
         onpointerup();
         this.down = false;
     }
@@ -226,27 +244,21 @@ function drawModel(model, scale, [x, y]) {
 }
 
 const onpointerdown = (x, y) => {
-    x /= window.innerWidth;
-    y = 1 - y / window.innerHeight;
-
-    this.x = (x - 0.5) * aspectRatio + camX;
-    this.y = y - 0.5 + camY;
+    onpointermove(x, y);
 
     gameLogic.player.held = true;
     gameLogic.player.vx = 0;
     gameLogic.player.vy = 0;
-
-    gameLogic.player.setPosition(this.x, this.y);
-
-    //console.log(this.x, this.y);
 }
 
 const onpointermove = (x, y) => {
-    x /= window.innerWidth;
-    y = 1 - y / window.innerHeight;
+    x = -1 + x / canvas.clientWidth * 2;
+    y = 1 - y / canvas.clientHeight * 2;
 
-    this.x = (x - 0.5) * aspectRatio + camX;
-    this.y = y - 0.5 + camY;
+    const ray = Mat4.getRayFromClipspace(viewPerspectiveMatrix, [x, y]);
+    const dist = camZ / -ray[2];
+    this.x = ray[0] * dist + camX;
+    this.y = ray[1] * dist + camY;
 
     gameLogic.player.setPosition(this.x, this.y);
 }

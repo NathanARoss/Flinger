@@ -47,6 +47,7 @@ class PhysicsObj {
             this.vy -= 0.002;
             this.x += this.vx;
             this.y += this.vy;
+            debugText.textContent = `(${this.x.toFixed(2)}, ${this.y.toFixed(2)})`;
     
             if (this.y < this.r) {
                 this.vx *= 0.9;
@@ -54,16 +55,16 @@ class PhysicsObj {
                 this.y = this.r;
             }
 
-            if (this.x < -aspectRatio / 2 + this.r) {
+            if (this.x < -1 + this.r) {
                 this.vy *= 0.9;
                 this.vx = -this.vx * 0.9;
-                this.x = -aspectRatio / 2 + this.r;
+                this.x = -1 + this.r;
             }
 
-            if (this.x > aspectRatio / 2 - this.r) {
+            if (this.x > 1 - this.r) {
                 this.vy *= 0.9;
                 this.vx = -this.vx * 0.9;
-                this.x = aspectRatio / 2 - this.r;
+                this.x = 1 - this.r;
             }
         }
     }

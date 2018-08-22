@@ -19,13 +19,65 @@ class Mat4 {
         out.data[14] = 2 * far * near * nf;
     };
 
-    // static translationMatrix(out, [x, y, z]) {
-    //     out.data.fill(0);
-    //     out.data[0] = 1;
-    //     out.data[5] = 1;
-    //     out.data[10] = 1;
-    //     out.data.set([x, y, z, 1], 12);
-    // }
+    static lookAt(out, eye, center, up) {
+        /* taken from gl-matrix.js library */    
+        let z0 = eye[0] - center[0];
+        let z1 = eye[1] - center[1];
+        let z2 = eye[2] - center[2];
+    
+        let len = 1 / Math.sqrt(z0 * z0 + z1 * z1 + z2 * z2);
+        z0 *= len;
+        z1 *= len;
+        z2 *= len;
+    
+        let x0 = up[1] * z2 - up[2] * z1;
+        let x1 = up[2] * z0 - up[0] * z2;
+        let x2 = up[0] * z1 - up[1] * z0;
+        len = Math.sqrt(x0 * x0 + x1 * x1 + x2 * x2);
+        if (!len) {
+            x0 = 0;
+            x1 = 0;
+            x2 = 0;
+        } else {
+            len = 1 / len;
+            x0 *= len;
+            x1 *= len;
+            x2 *= len;
+        }
+    
+        let y0 = z1 * x2 - z2 * x1;
+        let y1 = z2 * x0 - z0 * x2;
+        let y2 = z0 * x1 - z1 * x0;
+    
+        len = Math.sqrt(y0 * y0 + y1 * y1 + y2 * y2);
+        if (!len) {
+            y0 = 0;
+            y1 = 0;
+            y2 = 0;
+        } else {
+            len = 1 / len;
+            y0 *= len;
+            y1 *= len;
+            y2 *= len;
+        }
+    
+        out.data[0] = x0;
+        out.data[1] = y0;
+        out.data[2] = z0;
+        out.data[3] = 0;
+        out.data[4] = x1;
+        out.data[5] = y1;
+        out.data[6] = z1;
+        out.data[7] = 0;
+        out.data[8] = x2;
+        out.data[9] = y2;
+        out.data[10] = z2;
+        out.data[11] = 0;
+        out.data[12] = -(x0 * eye[0] + x1 * eye[1] + x2 * eye[2]);
+        out.data[13] = -(y0 * eye[0] + y1 * eye[1] + y2 * eye[2]);
+        out.data[14] = -(z0 * eye[0] + z1 * eye[1] + z2 * eye[2]);
+        out.data[15] = 1;
+    };
 
     static multiply(out, a, b) {
         for (let i = 0; i < 16; ++i) {
@@ -35,6 +87,15 @@ class Mat4 {
                         + b.data[3 | i & ~3] * a.data[12 | i & 3];
         }
     };
+
+    static multiplyVec4(out, mat, vec) {
+        for (let i = 0; i < 4; ++i) {
+            out.data[i] = vec.data[0] * mat.data[i]
+                        + vec.data[1] * mat.data[4 + i]
+                        + vec.data[2] * mat.data[8 + i]
+                        + vec.data[3] * mat.data[12 + i]
+        }
+    }
 
     static translate(out, a, [x, y, z]) {
         if (a !== out) {
@@ -55,6 +116,81 @@ class Mat4 {
             out.data[12 + i] = a.data[12 + i];
         }
     };
+
+    static invert(out, a) {
+        /* taken from gl-matrix.js library */
+        let [a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33] = a.data;
+    
+        let b00 = a00 * a11 - a01 * a10;
+        let b01 = a00 * a12 - a02 * a10;
+        let b02 = a00 * a13 - a03 * a10;
+        let b03 = a01 * a12 - a02 * a11;
+        let b04 = a01 * a13 - a03 * a11;
+        let b05 = a02 * a13 - a03 * a12;
+        let b06 = a20 * a31 - a21 * a30;
+        let b07 = a20 * a32 - a22 * a30;
+        let b08 = a20 * a33 - a23 * a30;
+        let b09 = a21 * a32 - a22 * a31;
+        let b10 = a21 * a33 - a23 * a31;
+        let b11 = a22 * a33 - a23 * a32;
+    
+        // Calculate the determinant
+        let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+    
+        if (!det) { 
+            return null; 
+        }
+        det = 1.0 / det;
+    
+        out.data[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+        out.data[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+        out.data[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+        out.data[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
+        out.data[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+        out.data[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+        out.data[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+        out.data[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
+        out.data[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+        out.data[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+        out.data[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+        out.data[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
+        out.data[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
+        out.data[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
+        out.data[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
+        out.data[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
+    };
+
+    /**
+     * returns an x,y pair cooresponding to where a tap would intersect with the plane z=0
+     * @param {*} worldSpacePoint 
+     * @param {*} viewProjectionMatrix 
+     * @param {*} clipSpacePoint 
+     */
+    static getRayFromClipspace(viewPerspectiveMatrix, clipSpacePoint) {
+        Mat4.invert(Mat4.temp, viewPerspectiveMatrix);
+    
+        const clipPoint = new Vec4(clipSpacePoint[0], clipSpacePoint[1], 1, 1);
+
+        const ray = new Vec4();
+        Mat4.multiplyVec4(ray, Mat4.temp, clipPoint);
+
+        const length = Math.sqrt(ray.data[0] * ray.data[0] + ray.data[1] * ray.data[1] + ray.data[2] * ray.data[2]);
+        ray.data[0] /= length;
+        ray.data[1] /= length;
+        ray.data[2] /= length;
+
+        return ray.data.slice(0, 3);
+    }
 }
 
 Mat4.IDENTITY = new Mat4();
+Mat4.temp = new Mat4();
+
+
+
+class Vec4 {
+    constructor(x = 0, y = 0, z = 0, w = 0) {
+        this.data = new Float32Array(4);
+        this.data.set([x, y, z, w]);
+    }
+}
