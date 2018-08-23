@@ -24,8 +24,6 @@ void main(void) {
     gl_FragColor = texture2D(uSampler, vTexCoord);
 }`;
 
-let aspectRatio = 1;
-
 const modelViewMatrix = new Mat4();
 const viewMatrix = new Mat4();
 const perspectiveMatrix = new Mat4();
@@ -55,11 +53,12 @@ const fishModel = initCircleModel(gl, 5);
 const enivornmentModel = initWalls(gl, 0);
 const fishTexture = loadTexture(gl, "fish.png");
 
-let camX = 0.0;
-let camY = 1;
-let camZ = 2;
-let targetX = 0;
-let targetY = 0;
+const camera = [0, 1, 2];
+const camTarget = [0, 0];
+
+const touchPoints = [];
+let highestDot = 0;
+let prevPointerMovement = Date.now();
 
 
 gl.useProgram(programInfo.program);
@@ -77,7 +76,7 @@ document.body.onresize = function() {
     canvas.height = window.innerHeight * window.devicePixelRatio;
     gl.viewport(0, 0, canvas.width, canvas.height);
 
-    aspectRatio = canvas.clientWidth / canvas.clientHeight;
+    const aspectRatio = canvas.clientWidth / canvas.clientHeight;
     Mat4.perspectiveMatrix(perspectiveMatrix, 45, aspectRatio, 0.125, 100);
 };
 document.body.onresize();
@@ -153,11 +152,15 @@ function drawScene(timestamp) {
     const playerY = gameLogic.getY(gameLogic.player, timestamp);
 
     if (!gameLogic.player.held) {
-        targetX = playerX;
-        targetY = playerY;
+        const rayTowardsNewTarget = [playerX - camTarget[0], playerY - camTarget[1]];
+        const magnitude = normalize(rayTowardsNewTarget);
+        const distance = Math.min(0.1, Math.max(-0.1, magnitude));
+
+        camTarget[0] += rayTowardsNewTarget[0] * distance;
+        camTarget[1] += rayTowardsNewTarget[1] * distance;
     }
 
-    Mat4.lookAt(viewMatrix, [camX, camY, camZ], [targetX, targetY, 0], [0, 1, 0]);
+    Mat4.lookAt(viewMatrix, camera, [...camTarget, 0], [0, 1, 0]);
     Mat4.multiply(viewPerspectiveMatrix, perspectiveMatrix, viewMatrix);
 
     gl.enableVertexAttribArray(programInfo.attribLocations.position);
@@ -165,6 +168,10 @@ function drawScene(timestamp) {
 
     drawModel(fishModel, gameLogic.player.r, [playerX, playerY]);
     drawModel(enivornmentModel, 12.5, [0, 0]);
+
+    for (let [i, point] of touchPoints.entries()) {
+        drawModel(fishModel, 1 / 64 + i / touchPoints.length / 64, point);
+    }
 
     gl.disableVertexAttribArray(programInfo.attribLocations.position);
     gl.disableVertexAttribArray(programInfo.attribLocations.texCord);
@@ -206,7 +213,13 @@ function drawModel(model, scale, [x, y]) {
     }
 
     canvas.onmouseleave = function(event) {
-        onpointerup();
+        var e = event.toElement || event.relatedTarget;
+        if (e == debugText || e == this) {
+           return;
+        }
+        if (this.down) {
+            onpointerup();
+        }
         this.down = false;
     }
 
@@ -244,11 +257,15 @@ function drawModel(model, scale, [x, y]) {
 }
 
 const onpointerdown = (x, y) => {
+    touchPoints.length = 0;
+    highestDot = 0;
+
     onpointermove(x, y);
 
     gameLogic.player.held = true;
     gameLogic.player.vx = 0;
     gameLogic.player.vy = 0;
+    prevPointerMovement = Date.now();
 }
 
 const onpointermove = (x, y) => {
@@ -256,15 +273,44 @@ const onpointermove = (x, y) => {
     y = 1 - y / canvas.clientHeight * 2;
 
     const ray = Mat4.getRayFromClipspace(viewPerspectiveMatrix, [x, y]);
-    const dist = camZ / -ray[2];
-    this.x = ray[0] * dist + camX;
-    this.y = ray[1] * dist + camY;
+    const dist = camera[2] / -ray[2];
+    this.x = ray[0] * dist + camera[0];
+    this.y = ray[1] * dist + camera[1];
+
+    if (!gameLogic.player.held) {
+        gameLogic.player.setPosition(this.x, this.y);
+    }
+
+    const now = Date.now();
+    const deltaTime = (now - prevPointerMovement) / 1000;
+    prevPointerMovement = now;
+
+    const deltaX = (this.x - gameLogic.player.x) / deltaTime;
+    const deltaY = (this.y - gameLogic.player.y) / deltaTime;
+
+    const dot = deltaX * deltaX + deltaY * deltaY;
+    if (dot > highestDot) {
+        highestDot = dot;
+        gameLogic.player.setVelocity(deltaX, deltaY);
+    }
 
     gameLogic.player.setPosition(this.x, this.y);
+    touchPoints.push([this.x, this.y]);
 }
 
 const onpointerup = () => {
     gameLogic.player.held = false;
-    gameLogic.player.vx = gameLogic.player.x - gameLogic.player.prevX;
-    gameLogic.player.vy = gameLogic.player.y - gameLogic.player.prevY;
+
+    //const output = touchPoints.map(point => `(${point[0].toFixed(3)}, ${point[1].toFixed(3)})`);
+    //console.log("TouchPoints: ", output.join(",\n"));
+}
+
+function normalize(arr) {
+    const magnitude = arr.reduce((accumulator, currentValue) => accumulator + currentValue * currentValue);
+    if (magnitude !== 0) {
+        for (let i = 0; i < arr.length; ++i) {
+            arr[i] /= magnitude;
+        }
+    }
+    return magnitude;
 }

@@ -3,7 +3,7 @@ class GameLogic {
         this.player = new PhysicsObj(0, 1, 1/32);
 
         this.lastTick = -1;
-        this.milisecondsPerTick = 20;
+        this.millisecondsPerTick = 20;
     }
 
     tick() {
@@ -13,18 +13,18 @@ class GameLogic {
     performTicks(timestamp) {
         this.lastTick = Math.max(this.lastTick, timestamp - 100);
 
-        while (this.lastTick + this.milisecondsPerTick < timestamp) {
+        while (this.lastTick + this.millisecondsPerTick < timestamp) {
             this.tick();
-            this.lastTick += this.milisecondsPerTick;
+            this.lastTick += this.millisecondsPerTick;
         }
     }
 
     getX(physicsObj, timestamp) {
-        return physicsObj.prevX + (physicsObj.x - physicsObj.prevX) * (timestamp - this.lastTick) / this.milisecondsPerTick;
+        return physicsObj.prevX + (physicsObj.x - physicsObj.prevX) * (timestamp - this.lastTick) / this.millisecondsPerTick;
     }
 
     getY(physicsObj, timestamp) {
-        return physicsObj.prevY + (physicsObj.y - physicsObj.prevY) * (timestamp - this.lastTick) / this.milisecondsPerTick;
+        return physicsObj.prevY + (physicsObj.y - physicsObj.prevY) * (timestamp - this.lastTick) / this.millisecondsPerTick;
     }
 }
 
@@ -43,11 +43,12 @@ class PhysicsObj {
         this.prevX = this.x;
         this.prevY = this.y;
 
+        debugText.textContent = `positon: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})\nvelocity: (${this.vx.toFixed(2)}, ${this.vy.toFixed(2)})`;
+
         if (!this.held) {
             this.vy -= 0.002;
             this.x += this.vx;
             this.y += this.vy;
-            debugText.textContent = `(${this.x.toFixed(2)}, ${this.y.toFixed(2)})`;
     
             if (this.y < this.r) {
                 this.vx *= 0.9;
@@ -72,5 +73,10 @@ class PhysicsObj {
     setPosition(x, y) {
         this.x = x;
         this.y = y;
+    }
+
+    setVelocity(vx, vy) {
+        this.vx = vx * gameLogic.millisecondsPerTick / 1000;
+        this.vy = vy * gameLogic.millisecondsPerTick / 1000;
     }
 }

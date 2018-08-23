@@ -3,11 +3,41 @@
         <title>Flinger</title>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <style>
+            body {
+                margin: 0;
+                width: 100vw;
+                height: 100vh;
+                overflow: hidden;
+            }
+
+            canvas {
+                margin: 0;
+                border: 0;
+                width: 100vw;
+                height: 100vh;
+            }
+
+            #debugText {
+                position: absolute;
+                z-index: 1;
+                top: 20;
+                left: 20;
+                color: white;
+                background-color: rgba(0, 0, 0, 0.25);
+                white-space: pre;
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }
+        </style>
     </head>
 
-    <body style="margin: 0; width: 100vw; height: 100vh; overflow: hidden;">
-        <canvas style="margin: 0; border: 0; width: 100vw; height: 100vh; "></canvas>
-        <p id="debugText" style="position: absolute; z-index: 1; top: 20; left: 20; color: white;"></p>
+    <body>
+        <canvas></canvas>
+        <p id="debugText"></p>
 
         <script src="game-logic.js"></script>
         <script src="matrix-math.js"></script>
