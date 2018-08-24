@@ -54,7 +54,7 @@ const enivornmentModel = initWalls(gl, 0);
 const fishTexture = loadTexture(gl, "fish.png");
 
 const camera = [0, 1, 2];
-const camTarget = [0, 0];
+const camTarget = [0, 1];
 
 const touchPoints = [];
 let highestDot = 0;
@@ -151,27 +151,33 @@ function drawScene(timestamp) {
     const playerX = gameLogic.getX(gameLogic.player, timestamp);
     const playerY = gameLogic.getY(gameLogic.player, timestamp);
 
-    if (!gameLogic.player.held) {
-        const rayTowardsNewTarget = [playerX - camTarget[0], playerY - camTarget[1]];
-        const magnitude = normalize(rayTowardsNewTarget);
-        const distance = Math.min(0.1, Math.max(-0.1, magnitude));
+    // if (!gameLogic.player.held) {
+    //     const rayTowardsNewTarget = [playerX - camera[0], playerY - camera[1]];
+    //     const magnitude = normalize(rayTowardsNewTarget);
+    //     const distance = Math.min(0.1, Math.max(-0.1, magnitude));
 
-        camTarget[0] += rayTowardsNewTarget[0] * distance;
-        camTarget[1] += rayTowardsNewTarget[1] * distance;
-    }
+    //     camera[0] += rayTowardsNewTarget[0] * distance;
+    //     camera[1] += rayTowardsNewTarget[1] * distance;
+    // }
 
-    Mat4.lookAt(viewMatrix, camera, [...camTarget, 0], [0, 1, 0]);
+    Mat4.lookAt(viewMatrix, camera, [camera[0], camera[1], 0], [0, 1, 0]);
     Mat4.multiply(viewPerspectiveMatrix, perspectiveMatrix, viewMatrix);
 
     gl.enableVertexAttribArray(programInfo.attribLocations.position);
     gl.enableVertexAttribArray(programInfo.attribLocations.texCord);
 
-    drawModel(fishModel, gameLogic.player.r, [playerX, playerY]);
-    drawModel(enivornmentModel, 12.5, [0, 0]);
-
-    for (let [i, point] of touchPoints.entries()) {
-        drawModel(fishModel, 1 / 64 + i / touchPoints.length / 64, point);
+    {
+        const facingOtherWay = (gameLogic.player.angle < Math.PI / 2 && gameLogic.player.angle > -Math.PI / 2) ? 1 : -1;
+        const scale = [gameLogic.player.r, gameLogic.player.r * facingOtherWay];
+        const position = [playerX, playerY];
+        const angle = gameLogic.player.angle;
+        drawModel(fishModel, scale, position, angle);
     }
+    //drawModel(enivornmentModel, 12.5, [0, 0]);
+
+    // for (let [i, point] of touchPoints.entries()) {
+    //     drawModel(fishModel, 1 / 64 + i / touchPoints.length / 64, point);
+    // }
 
     gl.disableVertexAttribArray(programInfo.attribLocations.position);
     gl.disableVertexAttribArray(programInfo.attribLocations.texCord);
@@ -179,9 +185,12 @@ function drawScene(timestamp) {
     requestAnimationFrame(drawScene);
 }
 
-function drawModel(model, scale, [x, y]) {
-    Mat4.translate(modelViewMatrix, Mat4.IDENTITY, [x, y, 0]);
-    Mat4.scale(modelViewMatrix, modelViewMatrix, [scale, scale, 1]);
+function drawModel(model, scale, [x, y], rotationAngle = 0) {
+    modelViewMatrix.data.set(Mat4.IDENTITY.data);
+
+    Mat4.translate(modelViewMatrix, modelViewMatrix, [x, y, 0]);
+    Mat4.rotate(modelViewMatrix, modelViewMatrix, rotationAngle, [0, 0, -1]);
+    Mat4.scale(modelViewMatrix, modelViewMatrix, [...scale, 1]);
 
     Mat4.multiply(tempMatrix, viewPerspectiveMatrix, modelViewMatrix);
     gl.uniformMatrix4fv(programInfo.uniformLocations.mvpMatrix, false, tempMatrix.data);
@@ -260,6 +269,14 @@ const onpointerdown = (x, y) => {
     touchPoints.length = 0;
     highestDot = 0;
 
+    // camera[0] = gameLogic.player.x;
+    // camera[1] = gameLogic.player.y;
+    // camTarget[0] = gameLogic.player.x;
+    // camTarget[1] = gameLogic.player.y;
+
+    // Mat4.lookAt(viewMatrix, camera, [...camTarget, 0], [0, 1, 0]);
+    // Mat4.multiply(viewPerspectiveMatrix, perspectiveMatrix, viewMatrix);
+
     onpointermove(x, y);
 
     gameLogic.player.held = true;
@@ -288,6 +305,11 @@ const onpointermove = (x, y) => {
     const deltaX = (this.x - gameLogic.player.x) / deltaTime;
     const deltaY = (this.y - gameLogic.player.y) / deltaTime;
 
+    if (dotFunction([deltaX, deltaY]) > 0) {
+        const angle = Math.atan2(-deltaY, deltaX);
+        gameLogic.player.setAngle(angle);
+    }
+
     const dot = deltaX * deltaX + deltaY * deltaY;
     if (dot > highestDot) {
         highestDot = dot;
@@ -306,11 +328,16 @@ const onpointerup = () => {
 }
 
 function normalize(arr) {
-    const magnitude = arr.reduce((accumulator, currentValue) => accumulator + currentValue * currentValue);
-    if (magnitude !== 0) {
+    const dot = dotFunction(arr);
+    if (dot !== 0) {
+        const magnitude = Math.sqrt(dot);
         for (let i = 0; i < arr.length; ++i) {
             arr[i] /= magnitude;
         }
     }
     return magnitude;
+}
+
+function dotFunction(arr) {
+    return arr.reduce((awk, curr) => awk + curr * curr, 0)
 }

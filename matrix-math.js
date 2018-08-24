@@ -51,10 +51,6 @@ class Mat4 {
     
         len = Math.sqrt(y0 * y0 + y1 * y1 + y2 * y2);
         if (!len) {
-            y0 = 0;
-            y1 = 0;
-            y2 = 0;
-        } else {
             len = 1 / len;
             y0 *= len;
             y1 *= len;
@@ -117,6 +113,36 @@ class Mat4 {
         }
     };
 
+    static rotate(out, a, rad, axis) {
+        /* taken from gl-matrix.js library */    
+        const [x, y, z] = axis;
+        const s = Math.sin(rad);
+        const c = Math.cos(rad);
+        const t = 1 - c;
+    
+        // Construct the elements of the rotation matrix
+        const b = [];
+        b[0] = x * x * t + c;
+        b[1] = y * x * t + z * s;
+        b[2] = z * x * t - y * s;
+        b[3] = x * y * t - z * s;
+        b[4] = y * y * t + c;
+        b[5] = z * y * t + x * s;
+        b[6] = x * z * t + y * s;
+        b[7] = y * z * t - x * s;
+        b[8] = z * z * t + c;
+
+        const copy = a.data.slice();
+        for (let i = 0; i < 12; ++i) {
+            out.data[i] = copy[i & 3] * b[~~(i/4)*3] + copy[4 | i & 3] * b[~~(i/4)*3 + 1] + copy[8 | i & 3] * b[~~(i/4)*3 + 2];
+        }
+    
+        if (a !== out) { // If the source and destination differ, copy the unchanged last row
+            out.data.set(copy.slice(12), 12);
+        }
+        return out;
+    };
+
     static invert(out, a) {
         /* taken from gl-matrix.js library */
         let [a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33] = a.data;
@@ -161,23 +187,18 @@ class Mat4 {
     };
 
     /**
-     * returns an x,y pair cooresponding to where a tap would intersect with the plane z=0
-     * @param {*} worldSpacePoint 
-     * @param {*} viewProjectionMatrix 
-     * @param {*} clipSpacePoint 
+     * returns a ray shooting out of the camera at the given clipspace point
+     * @param {*} viewProjectionMatrix matrix used to draw world
+     * @param {[Number]} clipSpacePoint array of x and y point in clipspace
+     * @returns {[Number]} ray in worldspace (not normalized)
      */
     static getRayFromClipspace(viewPerspectiveMatrix, clipSpacePoint) {
         Mat4.invert(Mat4.temp, viewPerspectiveMatrix);
     
-        const clipPoint = new Vec4(clipSpacePoint[0], clipSpacePoint[1], 1, 1);
+        const clipPoint = new Vec4(...clipSpacePoint, 1, 1);
 
         const ray = new Vec4();
         Mat4.multiplyVec4(ray, Mat4.temp, clipPoint);
-
-        const length = Math.sqrt(ray.data[0] * ray.data[0] + ray.data[1] * ray.data[1] + ray.data[2] * ray.data[2]);
-        ray.data[0] /= length;
-        ray.data[1] /= length;
-        ray.data[2] /= length;
 
         return ray.data.slice(0, 3);
     }

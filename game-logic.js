@@ -29,7 +29,7 @@ class GameLogic {
 }
 
 class PhysicsObj {
-    constructor(x = 0, y = 0, r = 1, vx = 0, vy = 0) {
+    constructor(x = 0, y = 0, r = 1, vx = 0, vy = 0, angle = 0) {
         this.x = x;
         this.y = y;
         this.r = r;
@@ -37,36 +37,37 @@ class PhysicsObj {
         this.prevY = y;
         this.vx = vx;
         this.vy = vy;
+        this.angle = angle;
     }
 
     tick() {
         this.prevX = this.x;
         this.prevY = this.y;
 
-        debugText.textContent = `positon: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})\nvelocity: (${this.vx.toFixed(2)}, ${this.vy.toFixed(2)})`;
+        debugText.textContent = `position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})\nvelocity: (${this.vx.toFixed(2)}, ${this.vy.toFixed(2)})`;
 
         if (!this.held) {
-            this.vy -= 0.002;
+            //this.vy -= 0.002;
             this.x += this.vx;
             this.y += this.vy;
     
-            if (this.y < this.r) {
-                this.vx *= 0.9;
-                this.vy = -this.vy * 0.9;
-                this.y = this.r;
-            }
+            // if (this.y < this.r) {
+            //     this.vx *= 0.9;
+            //     this.vy = -this.vy * 0.9;
+            //     this.y = this.r;
+            // }
 
-            if (this.x < -1 + this.r) {
-                this.vy *= 0.9;
-                this.vx = -this.vx * 0.9;
-                this.x = -1 + this.r;
-            }
+            // if (this.x < -1 + this.r) {
+            //     this.vy *= 0.9;
+            //     this.vx = -this.vx * 0.9;
+            //     this.x = -1 + this.r;
+            // }
 
-            if (this.x > 1 - this.r) {
-                this.vy *= 0.9;
-                this.vx = -this.vx * 0.9;
-                this.x = 1 - this.r;
-            }
+            // if (this.x > 1 - this.r) {
+            //     this.vy *= 0.9;
+            //     this.vx = -this.vx * 0.9;
+            //     this.x = 1 - this.r;
+            // }
         }
     }
 
@@ -78,5 +79,9 @@ class PhysicsObj {
     setVelocity(vx, vy) {
         this.vx = vx * gameLogic.millisecondsPerTick / 1000;
         this.vy = vy * gameLogic.millisecondsPerTick / 1000;
+    }
+
+    setAngle(angle) {
+        this.angle = angle;
     }
 }
