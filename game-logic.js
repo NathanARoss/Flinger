@@ -1,6 +1,6 @@
 class GameLogic {
     constructor() {
-        this.player = new PhysicsObj(0, 1, 1/32);
+        this.player = new PhysicsObj(0, 0, 1/32);
 
         this.lastTick = -1;
         this.millisecondsPerTick = 20;

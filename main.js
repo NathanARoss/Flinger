@@ -21,7 +21,7 @@ const fsSource =
 uniform sampler2D uSampler;
 
 void main(void) {
-    gl_FragColor = texture2D(uSampler, vTexCoord);
+    gl_FragColor = vec4(texture2D(uSampler, vTexCoord).rgb, 0.5);
 }`;
 
 const modelViewMatrix = new Mat4();
@@ -31,7 +31,7 @@ const viewPerspectiveMatrix = new Mat4();
 const tempMatrix = new Mat4();
 
 const canvas = document.querySelector("canvas");
-const gl = canvas.getContext("webgl");
+const gl = canvas.getContext("webgl", { alpha: false });
 const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
 const programInfo = {
@@ -50,11 +50,9 @@ const programInfo = {
 const gameLogic = new GameLogic();
 
 const fishModel = initCircleModel(gl, 5);
-const enivornmentModel = initWalls(gl, 0);
 const fishTexture = loadTexture(gl, "fish.png");
 
-const camera = [0, 1, 2];
-const camTarget = [0, 1];
+const camera = [0, 0, 2];
 
 const touchPoints = [];
 let highestDot = 0;
@@ -69,6 +67,7 @@ gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
 
 gl.clearColor(0.0, 0.412, 0.58, 1.0);
 gl.enable(gl.DEPTH_TEST);
+gl.disable(gl.BLEND);
 
 
 document.body.onresize = function() {
@@ -173,14 +172,13 @@ function drawScene(timestamp) {
         const angle = gameLogic.player.angle;
         drawModel(fishModel, scale, position, angle);
     }
-    //drawModel(enivornmentModel, 12.5, [0, 0]);
-
-    // for (let [i, point] of touchPoints.entries()) {
-    //     drawModel(fishModel, 1 / 64 + i / touchPoints.length / 64, point);
-    // }
+    
+    gl.disableVertexAttribArray(programInfo.attribLocations.texCord);
+    for (let [i, point] of touchPoints.entries()) {
+        drawModel(fishModel, [1 / 128, 1 / 128], point);
+    }
 
     gl.disableVertexAttribArray(programInfo.attribLocations.position);
-    gl.disableVertexAttribArray(programInfo.attribLocations.texCord);
 
     requestAnimationFrame(drawScene);
 }
@@ -268,14 +266,6 @@ function drawModel(model, scale, [x, y], rotationAngle = 0) {
 const onpointerdown = (x, y) => {
     touchPoints.length = 0;
     highestDot = 0;
-
-    // camera[0] = gameLogic.player.x;
-    // camera[1] = gameLogic.player.y;
-    // camTarget[0] = gameLogic.player.x;
-    // camTarget[1] = gameLogic.player.y;
-
-    // Mat4.lookAt(viewMatrix, camera, [...camTarget, 0], [0, 1, 0]);
-    // Mat4.multiply(viewPerspectiveMatrix, perspectiveMatrix, viewMatrix);
 
     onpointermove(x, y);
 

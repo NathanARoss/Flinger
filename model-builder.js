@@ -47,35 +47,3 @@ function initCircleModel(gl, iterations)
 
     return {buffer, positionType: gl.BYTE, vertexCount: model.length / 4};
 }
-
-function initWalls(gl, floorHeight) {
-    const model = new Int8Array(3 * 3 * 4);
-    let i = 0;
-
-    for (let [x, y] of [[-100, floorHeight], [100, floorHeight], [0, -100]]) {
-        model[i++] = x;
-        model[i++] = y;
-        model[i++] = -150;
-        model[i++] = -150;
-    }
-
-    for (let [x, y] of [[-10, floorHeight], [-20, floorHeight], [-10, 100]]) {
-        model[i++] = x;
-        model[i++] = y;
-        model[i++] = -100;
-        model[i++] = -100;
-    }
-
-    for (let [x, y] of [[10, floorHeight], [10, 100], [20, floorHeight]]) {
-        model[i++] = x;
-        model[i++] = y;
-        model[i++] = 50;
-        model[i++] = 50;
-    }
-
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, model, gl.STATIC_DRAW);
-
-    return {buffer, positionType: gl.BYTE, vertexCount: model.length / 4};
-}
