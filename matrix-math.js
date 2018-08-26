@@ -188,16 +188,15 @@ class Mat4 {
 
     /**
      * returns a ray shooting out of the camera at the given clipspace point
-     * @param {*} viewProjectionMatrix matrix used to draw world
+     * @param {Mat4} viewProjectionMatrix matrix used to draw world
      * @param {[Number]} clipSpacePoint array of x and y point in clipspace
      * @returns {[Number]} ray in worldspace (not normalized)
      */
     static getRayFromClipspace(viewPerspectiveMatrix, clipSpacePoint) {
-        Mat4.invert(Mat4.temp, viewPerspectiveMatrix);
-    
         const clipPoint = new Vec4(...clipSpacePoint, 1, 1);
 
         const ray = new Vec4();
+        Mat4.invert(Mat4.temp, viewPerspectiveMatrix);
         Mat4.multiplyVec4(ray, Mat4.temp, clipPoint);
 
         return ray.data.slice(0, 3);
@@ -214,4 +213,28 @@ class Vec4 {
         this.data = new Float32Array(4);
         this.data.set([x, y, z, w]);
     }
+}
+
+
+function dotFunction(accumulator, currentValue) {
+    return accumulator + currentValue**2;
+}
+
+function normalize(arr) {
+    const dot = arr.reduce(dotFunction, 0);
+    const magnitude = Math.sqrt(dot);
+    if (dot !== 0) {
+        for (let i = 0; i < arr.length; ++i) {
+            arr[i] /= magnitude;
+        }
+    }
+    return magnitude;
+}
+
+function reflect(incoming, normal) {
+    const dot = incoming[0] * normal[0] + incoming[1] * normal[1];
+    const out = [];
+    out[0] = incoming[0] - 2 * dot * normal[0];
+    out[1] = incoming[1] - 2 * dot * normal[1];
+    return out;
 }

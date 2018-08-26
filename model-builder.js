@@ -21,8 +21,8 @@ function initCircleModel(gl, iterations)
         let theta = Math.PI * 2/3 * v;
         model[i++] = Math.cos(theta) * radius;
         model[i++] = Math.sin(theta) * radius;
-        model[i++] = model[i - 3] + 127;
-        model[i++] = -model[i - 3] + 127;
+        model[i++] = model[i - 3] / 2 + 63;
+        model[i++] = -model[i - 3] / 2 + 63;
     }
 
     //further iterations subdivide the exposed sides into more polygons
@@ -33,8 +33,8 @@ function initCircleModel(gl, iterations)
                 let theta = Math.PI * (p * 2 + v) / polygons;
                 model[i++] = Math.cos(theta) * radius;
                 model[i++] = Math.sin(theta) * radius;
-                model[i++] = model[i - 3] + 127;
-                model[i++] = -model[i - 3] + 127;
+                model[i++] = model[i - 3] / 2 + 63;
+                model[i++] = -model[i - 3] / 2 + 63;
             }
         }
 
@@ -45,5 +45,76 @@ function initCircleModel(gl, iterations)
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, model, gl.STATIC_DRAW);
 
-    return {buffer, positionType: gl.BYTE, vertexCount: model.length / 4};
+    return {buffer, vertexCount: model.length / 4, mode: gl.TRIANGLES};
+}
+
+function initBox(u1, v1, u2, v2) {
+    const model = new Int8Array(6 * 4);
+    i = 0;
+
+    model[i++] = +127;
+    model[i++] = +127;
+    model[i++] = u2;
+    model[i++] = v2;
+
+    model[i++] = -127;
+    model[i++] = +127;
+    model[i++] = u1;
+    model[i++] = v2;
+
+    model[i++] = +127;
+    model[i++] = -127;
+    model[i++] = u2;
+    model[i++] = v1;
+
+    model[i++] = -127;
+    model[i++] = -127;
+    model[i++] = u1;
+    model[i++] = v1;
+
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, model, gl.STATIC_DRAW);
+
+    return {buffer, vertexCount: model.length / 4, mode: gl.TRIANGLE_STRIP};
+}
+
+function initPolygon(verticies, u, v) {
+    const vertexCount = verticies.length / 2;
+    const polygonCount = vertexCount - 2;
+    const model = new Int8Array(polygonCount * 3 * 4);
+    used = 0;
+
+    while (verticies.length > 4) {
+        for (let i = 0; i < verticies.length; i += 2) {
+            const clockwise = ((verticies[i+3] - verticies[i+1]) * (verticies[i+4] - verticies[i+2])
+                            - (verticies[i+2] - verticies[i+0]) * (verticies[i+5] - verticies[i+3])) > 0;
+            
+            if (clockwise) {
+                model[used++] = verticies[i];
+                model[used++] = verticies[i + 1];
+                model[used++] = u;
+                model[used++] = v;
+
+                model[used++] = verticies[i + 2];
+                model[used++] = verticies[i + 3];
+                model[used++] = u;
+                model[used++] = v;
+
+                model[used++] = verticies[i + 4];
+                model[used++] = verticies[i + 5];
+                model[used++] = u;
+                model[used++] = v;
+
+                verticies.splice(i + 2, 2);
+                break;
+            }
+        }
+    }
+
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, model, gl.STATIC_DRAW);
+
+    return {buffer, vertexCount: model.length / 4, mode: gl.TRIANGLES};
 }

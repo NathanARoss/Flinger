@@ -21,7 +21,7 @@ const fsSource =
 uniform sampler2D uSampler;
 
 void main(void) {
-    gl_FragColor = vec4(texture2D(uSampler, vTexCoord).rgb, 0.5);
+    gl_FragColor = vec4(texture2D(uSampler, vTexCoord).rgb, 0.75);
 }`;
 
 const modelViewMatrix = new Mat4();
@@ -31,7 +31,7 @@ const viewPerspectiveMatrix = new Mat4();
 const tempMatrix = new Mat4();
 
 const canvas = document.querySelector("canvas");
-const gl = canvas.getContext("webgl", { alpha: false });
+const gl = canvas.getContext("webgl", { alpha: false, premultipliedAlpha: false });
 const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
 const programInfo = {
@@ -50,11 +50,11 @@ const programInfo = {
 const gameLogic = new GameLogic();
 
 const fishModel = initCircleModel(gl, 5);
-const fishTexture = loadTexture(gl, "fish.png");
+const waterModel = initBox(128, 0, 128, 0);
+const textureMap = loadTexture(gl, "texturemap.png");
 
-const camera = [0, 0, 2];
+const camera = [0, 0, 40];
 
-const touchPoints = [];
 let highestDot = 0;
 let prevPointerMovement = Date.now();
 
@@ -62,12 +62,12 @@ let prevPointerMovement = Date.now();
 gl.useProgram(programInfo.program);
 
 gl.activeTexture(gl.TEXTURE0);
-gl.bindTexture(gl.TEXTURE_2D, fishTexture);
+gl.bindTexture(gl.TEXTURE_2D, textureMap);
 gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
 
-gl.clearColor(0.0, 0.412, 0.58, 1.0);
+gl.clearColor(0.53, 0.81, 0.92, 1);
 gl.enable(gl.DEPTH_TEST);
-gl.disable(gl.BLEND);
+gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
 
 document.body.onresize = function() {
@@ -88,7 +88,7 @@ function loadShader(gl, type, source) {
     gl.compileShader(shader);
 
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        alert('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
+        console.log('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
         return null;
     }
@@ -106,7 +106,7 @@ function initShaderProgram(gl, vsSource, fsSource) {
     gl.linkProgram(shaderProgram);
 
     if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-        alert('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
+        console.log('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
         return null;
     }
 
@@ -150,14 +150,15 @@ function drawScene(timestamp) {
     const playerX = gameLogic.getX(gameLogic.player, timestamp);
     const playerY = gameLogic.getY(gameLogic.player, timestamp);
 
-    // if (!gameLogic.player.held) {
-    //     const rayTowardsNewTarget = [playerX - camera[0], playerY - camera[1]];
-    //     const magnitude = normalize(rayTowardsNewTarget);
-    //     const distance = Math.min(0.1, Math.max(-0.1, magnitude));
+    if (!gameLogic.player.held) {
+        const rayTowardsNewTarget = [playerX + gameLogic.player.vx * 3 - camera[0], playerY + gameLogic.player.vy * 3 - camera[1]];
+        const distance = normalize(rayTowardsNewTarget);
 
-    //     camera[0] += rayTowardsNewTarget[0] * distance;
-    //     camera[1] += rayTowardsNewTarget[1] * distance;
-    // }
+        const speed = distance / 4;
+
+        camera[0] += rayTowardsNewTarget[0] * speed;
+        camera[1] += rayTowardsNewTarget[1] * speed;
+    }
 
     Mat4.lookAt(viewMatrix, camera, [camera[0], camera[1], 0], [0, 1, 0]);
     Mat4.multiply(viewPerspectiveMatrix, perspectiveMatrix, viewMatrix);
@@ -166,37 +167,43 @@ function drawScene(timestamp) {
     gl.enableVertexAttribArray(programInfo.attribLocations.texCord);
 
     {
-        const facingOtherWay = (gameLogic.player.angle < Math.PI / 2 && gameLogic.player.angle > -Math.PI / 2) ? 1 : -1;
-        const scale = [gameLogic.player.r, gameLogic.player.r * facingOtherWay];
-        const position = [playerX, playerY];
+        const facingRight = gameLogic.player.angle < Math.PI / 2 && gameLogic.player.angle > -Math.PI / 2;
+        const scale = [gameLogic.player.r * 2, gameLogic.player.r * (facingRight ? 2 : -2)];
+        const position = [playerX, playerY, 0];
         const angle = gameLogic.player.angle;
-        drawModel(fishModel, scale, position, angle);
-    }
-    
-    gl.disableVertexAttribArray(programInfo.attribLocations.texCord);
-    for (let [i, point] of touchPoints.entries()) {
-        drawModel(fishModel, [1 / 128, 1 / 128], point);
+        drawModel(fishModel, position, scale, angle);
     }
 
+    for (const body of gameLogic.rigidBodies) {
+        drawModel(body.model, [body.x, body.y, 0], [body.scale, body.scale], 0);
+    }
+
+    gl.enable(gl.BLEND);
+    for (const body of gameLogic.bodiesOfWater) {
+        drawModel(waterModel, [body.x, body.y, 0.01], [body.width, body.height], 0);
+    }
+    gl.disable(gl.BLEND);
+
     gl.disableVertexAttribArray(programInfo.attribLocations.position);
+    gl.disableVertexAttribArray(programInfo.attribLocations.texCord);
 
     requestAnimationFrame(drawScene);
 }
 
-function drawModel(model, scale, [x, y], rotationAngle = 0) {
+function drawModel(model, position, scale, rotationAngle) {
     modelViewMatrix.data.set(Mat4.IDENTITY.data);
 
-    Mat4.translate(modelViewMatrix, modelViewMatrix, [x, y, 0]);
+    Mat4.translate(modelViewMatrix, modelViewMatrix, position);
     Mat4.rotate(modelViewMatrix, modelViewMatrix, rotationAngle, [0, 0, -1]);
-    Mat4.scale(modelViewMatrix, modelViewMatrix, [...scale, 1]);
+    Mat4.scale(modelViewMatrix, modelViewMatrix, [scale[0] / 254, scale[1] / 254, 1]);
 
     Mat4.multiply(tempMatrix, viewPerspectiveMatrix, modelViewMatrix);
     gl.uniformMatrix4fv(programInfo.uniformLocations.mvpMatrix, false, tempMatrix.data);
     
     gl.bindBuffer(gl.ARRAY_BUFFER, model.buffer);
-    gl.vertexAttribPointer(programInfo.attribLocations.position, 2, model.positionType, true, 4, 0);
+    gl.vertexAttribPointer(programInfo.attribLocations.position, 2, gl.BYTE, false, 4, 0);
     gl.vertexAttribPointer(programInfo.attribLocations.texCord, 2, gl.UNSIGNED_BYTE, true, 4, 2);
-    gl.drawArrays(gl.TRIANGLES, 0, model.vertexCount);
+    gl.drawArrays(model.mode, 0, model.vertexCount);
 }
 
 
@@ -264,70 +271,74 @@ function drawModel(model, scale, [x, y], rotationAngle = 0) {
 }
 
 const onpointerdown = (x, y) => {
-    touchPoints.length = 0;
-    highestDot = 0;
-
+    this.bodyIndex = -1;
+    gameLogic.player.held = false;
     onpointermove(x, y);
-
-    gameLogic.player.held = true;
-    gameLogic.player.vx = 0;
-    gameLogic.player.vy = 0;
-    prevPointerMovement = Date.now();
 }
 
 const onpointermove = (x, y) => {
-    x = -1 + x / canvas.clientWidth * 2;
-    y = 1 - y / canvas.clientHeight * 2;
+    const [worldX, worldY] = getWorldSpace(x, y);
 
-    const ray = Mat4.getRayFromClipspace(viewPerspectiveMatrix, [x, y]);
-    const dist = camera[2] / -ray[2];
-    this.x = ray[0] * dist + camera[0];
-    this.y = ray[1] * dist + camera[1];
+    const cursorBodyIndex = gameLogic.getBodyOfWater({x: worldX, y: worldY, r: gameLogic.player.r});
+    const playerBodyIndex = gameLogic.getBodyOfWater({x: gameLogic.player.x, y: gameLogic.player.y, r: gameLogic.player.r});
+    
+    if (this.bodyIndex < 0 && cursorBodyIndex >= 0 && cursorBodyIndex === playerBodyIndex) {
+        gameLogic.player.setPosition(worldX, worldY);
+        gameLogic.player.setVelocity(0, 0);
+    
+        gameLogic.player.held = true;
+        prevPointerMovement = Date.now();
 
-    if (!gameLogic.player.held) {
-        gameLogic.player.setPosition(this.x, this.y);
+        this.x = worldX;
+        this.y = worldY;
+        this.bodyIndex = cursorBodyIndex;
     }
+    else if (this.bodyIndex >= 0) {
+        const deltaX = worldX - this.x;
+        const deltaY = worldY - this.y;
+        
+        if (deltaX !== 0 && deltaY !== 0) {
+            const angle = Math.atan2(-deltaY, deltaX);
+            gameLogic.player.setAngle(angle);
+        }
 
-    const now = Date.now();
-    const deltaTime = (now - prevPointerMovement) / 1000;
-    prevPointerMovement = now;
+        const now = Date.now();
 
-    const deltaX = (this.x - gameLogic.player.x) / deltaTime;
-    const deltaY = (this.y - gameLogic.player.y) / deltaTime;
+        if (playerBodyIndex < 0) {
+            this.bodyIndex = -1;
+            gameLogic.player.held = false;
+            const deltaTime = (now - prevPointerMovement) / 1000;
+            const fling = [deltaX / deltaTime, deltaY / deltaTime];
+            let flingSpeed = normalize(fling);
+            flingSpeed = Math.min(flingSpeed, 200); //max speed of 200 player height per second
+            fling[0] *= flingSpeed;
+            fling[1] *= flingSpeed;
+            gameLogic.player.setVelocity(...fling);
+        } else {
+            gameLogic.player.setPosition(worldX, worldY);
+        }
 
-    if (dotFunction([deltaX, deltaY]) > 0) {
-        const angle = Math.atan2(-deltaY, deltaX);
-        gameLogic.player.setAngle(angle);
+        this.x = worldX;
+        this.y = worldY;
+        prevPointerMovement = now;
     }
-
-    const dot = deltaX * deltaX + deltaY * deltaY;
-    if (dot > highestDot) {
-        highestDot = dot;
-        gameLogic.player.setVelocity(deltaX, deltaY);
-    }
-
-    gameLogic.player.setPosition(this.x, this.y);
-    touchPoints.push([this.x, this.y]);
 }
 
 const onpointerup = () => {
     gameLogic.player.held = false;
-
-    //const output = touchPoints.map(point => `(${point[0].toFixed(3)}, ${point[1].toFixed(3)})`);
-    //console.log("TouchPoints: ", output.join(",\n"));
+    this.bodyIndex = -1;
 }
 
-function normalize(arr) {
-    const dot = dotFunction(arr);
-    if (dot !== 0) {
-        const magnitude = Math.sqrt(dot);
-        for (let i = 0; i < arr.length; ++i) {
-            arr[i] /= magnitude;
-        }
-    }
-    return magnitude;
-}
+function getWorldSpace(x, y) {
+    x = -1 + x / canvas.clientWidth * 2;
+    y = 1 - y / canvas.clientHeight * 2;
 
-function dotFunction(arr) {
-    return arr.reduce((awk, curr) => awk + curr * curr, 0)
+    const ray = Mat4.getRayFromClipspace(viewPerspectiveMatrix, [x, y]);
+    const dist = -camera[2] / ray[2];
+    const worldX = ray[0] * dist + camera[0];
+    const worldY = ray[1] * dist + camera[1];
+
+    // I apply a 3/5 scale because the results are skewed away from the center of the screen otherwise.
+    // at this time, I am not sure why it is necessary
+    return [worldX * 3/5, worldY * 3/5];
 }
