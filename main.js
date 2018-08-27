@@ -53,7 +53,7 @@ const fishModel = initCircleModel(gl, 5);
 const waterModel = initBox(128, 0, 128, 0);
 const textureMap = loadTexture(gl, "texturemap.png");
 
-const camera = [0, 0, 40];
+const camera = [0, 0, 20];
 
 let highestDot = 0;
 let prevPointerMovement = Date.now();
@@ -340,5 +340,6 @@ function getWorldSpace(x, y) {
 
     // I apply a 3/5 scale because the results are skewed away from the center of the screen otherwise.
     // at this time, I am not sure why it is necessary
-    return [worldX * 3/5, worldY * 3/5];
+    const bias = 4 / 5;
+    return [worldX * bias, worldY * bias];
 }
