@@ -21,7 +21,7 @@ const fsSource =
 uniform sampler2D uSampler;
 
 void main(void) {
-    gl_FragColor = vec4(texture2D(uSampler, vTexCoord).rgb, 0.75);
+    gl_FragColor = texture2D(uSampler, vTexCoord);
 }`;
 
 const modelViewMatrix = new Mat4();
@@ -31,7 +31,14 @@ const viewPerspectiveMatrix = new Mat4();
 const tempMatrix = new Mat4();
 
 const canvas = document.querySelector("canvas");
-const gl = canvas.getContext("webgl", { alpha: false, premultipliedAlpha: false });
+const gl = canvas.getContext("webgl", {
+    alpha: false,
+    antialias: false,
+    depth: true, //needed for depth culling
+    premultipliedAlpha: true,
+    preserveDrawingBuffer: false,
+    stencil: false,
+});
 const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
 const programInfo = {
@@ -151,7 +158,7 @@ function drawScene(timestamp) {
     const playerY = gameLogic.getY(gameLogic.player, timestamp);
 
     if (!gameLogic.player.held) {
-        const rayTowardsNewTarget = [playerX + gameLogic.player.vx * 3 - camera[0], playerY + gameLogic.player.vy * 3 - camera[1]];
+        const rayTowardsNewTarget = [playerX - camera[0], playerY - camera[1]];
         const distance = normalize(rayTowardsNewTarget);
 
         const speed = distance / 4;
@@ -175,14 +182,12 @@ function drawScene(timestamp) {
     }
 
     for (const body of gameLogic.rigidBodies) {
-        drawModel(body.model, [body.x, body.y, 0], [body.scale, body.scale], 0);
+        drawModel(body.model, [body.x, body.y, -0.01], [body.scale, body.scale], 0);
     }
 
-    gl.enable(gl.BLEND);
     for (const body of gameLogic.bodiesOfWater) {
-        drawModel(waterModel, [body.x, body.y, 0.01], [body.width, body.height], 0);
+        drawModel(waterModel, [body.x, body.y, -0.02], [body.width, body.height], 0);
     }
-    gl.disable(gl.BLEND);
 
     gl.disableVertexAttribArray(programInfo.attribLocations.position);
     gl.disableVertexAttribArray(programInfo.attribLocations.texCord);
@@ -270,6 +275,13 @@ function drawModel(model, position, scale, rotationAngle) {
     canvas.addEventListener("touchcancel", existingTouchHandler);
 }
 
+document.onkeydown = function(event) {
+    if (event.key >= '0' && event.key <= '9') {
+        const tickRateScale = Math.pow(1/2, parseInt(event.key));
+        gameLogic.setTickRateScale(tickRateScale);
+    }
+}
+
 const onpointerdown = (x, y) => {
     this.bodyIndex = -1;
     gameLogic.player.held = false;
@@ -310,7 +322,7 @@ const onpointermove = (x, y) => {
             const deltaTime = (now - prevPointerMovement) / 1000;
             const fling = [deltaX / deltaTime, deltaY / deltaTime];
             let flingSpeed = normalize(fling);
-            flingSpeed = Math.min(flingSpeed, 200); //max speed of 200 player height per second
+            flingSpeed = Math.min(flingSpeed, 50); //max speed of 200 player height per second
             fling[0] *= flingSpeed;
             fling[1] *= flingSpeed;
             gameLogic.player.setVelocity(...fling);
