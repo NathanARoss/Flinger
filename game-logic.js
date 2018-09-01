@@ -1,13 +1,16 @@
 class GameLogic {
     constructor() {
-        this.player = new PhysicsObj(0, 10, 0.5, 0, 0);
+        this.player = new PhysicsObj(0, 0, 0.5);
 
         this.bodiesOfWater = [];
         this.bodiesOfWater.push(new StaticSquare(0, -50000, 100000, 100000));
+        this.bodiesOfWater.push(new StaticSquare(0, 15, 2.5, 3.5));
 
         this.rigidBodies = [];
-        const verticies = [-100, -50, -50, -10, -20, 5, -10, 0, 0, -10, 10, 0, 20, 5, 50, -10, 100, -50];
-        this.rigidBodies.push(new StaticRigidBody(0, 0, verticies, 200));
+        let verticies = [-100, -50, -50, -10, -20, 5, -10, 0, 0, -10, 10, 0, 20, 5, 50, -10, 100, -50];
+        this.rigidBodies.push(new StaticRigidBody(0, 0, verticies, 200, [1, 0.9, 0.4]));
+        verticies = [0, -100, -100, 0, -80, 50, -30, 45, 0, 10, 30, 45, 80, 50, 100, 0];
+        this.rigidBodies.push(new StaticRigidBody(0, 15, verticies, 10, [1, 0.5, 0.5]));
 
         this.lastTick = -1;
         this.MS_PER_TICK = 0;
@@ -29,11 +32,11 @@ class GameLogic {
     }
 
     getX(physicsObj, timestamp) {
-        return physicsObj.prevX + (physicsObj.x - physicsObj.prevX) * (timestamp - this.lastTick) / this.MS_PER_TICK;
+        return physicsObj.prevX + (physicsObj.x - physicsObj.prevX) * Math.max(0, timestamp - this.lastTick) / this.MS_PER_TICK;
     }
 
     getY(physicsObj, timestamp) {
-        return physicsObj.prevY + (physicsObj.y - physicsObj.prevY) * (timestamp - this.lastTick) / this.MS_PER_TICK;
+        return physicsObj.prevY + (physicsObj.y - physicsObj.prevY) * Math.max(0, timestamp - this.lastTick) / this.MS_PER_TICK;
     }
 
     getBodyOfWater(circle) {
@@ -48,6 +51,15 @@ class GameLogic {
     setTickRateScale(scale) {
         this.TICKS_PER_SECOND = 50 * scale;
         this.MS_PER_TICK = 1000 / this.TICKS_PER_SECOND;
+        this.lastTick = performance.now();
+    }
+
+    togglePhysics() {
+        if (this.lastTick === 1e100) {
+            this.lastTick = performance.now();
+        } else {
+            this.lastTick = 1e100;
+        }
     }
 }
 
@@ -140,7 +152,7 @@ class StaticSquare {
 }
 
 class StaticRigidBody {
-    constructor(x, y, verticies, scale) {
+    constructor(x, y, verticies, scale, color) {
         this.x = x;
         this.y = y;
         this.verticies = [];
@@ -150,7 +162,7 @@ class StaticRigidBody {
         }
         this.verticies.push(this.verticies[0], this.verticies[1]);
 
-        this.model = initPolygon(verticies, 130, 0);
+        this.model = initPolygon(verticies, ...color);
         this.scale = scale;
     }
 

@@ -21,8 +21,8 @@ function initCircleModel(gl, iterations)
         let theta = Math.PI * 2/3 * v;
         model[i++] = Math.cos(theta) * radius;
         model[i++] = Math.sin(theta) * radius;
-        model[i++] = model[i - 3] / 2 + 63;
-        model[i++] = -model[i - 3] / 2 + 63;
+        model[i++] = Math.random() * 255;
+        model[i++] = Math.random() * 255;
     }
 
     //further iterations subdivide the exposed sides into more polygons
@@ -33,8 +33,8 @@ function initCircleModel(gl, iterations)
                 let theta = Math.PI * (p * 2 + v) / polygons;
                 model[i++] = Math.cos(theta) * radius;
                 model[i++] = Math.sin(theta) * radius;
-                model[i++] = model[i - 3] / 2 + 63;
-                model[i++] = -model[i - 3] / 2 + 63;
+                model[i++] = Math.random() * 255;
+                model[i++] = Math.random() * 255;
             }
         }
 
@@ -48,29 +48,33 @@ function initCircleModel(gl, iterations)
     return {buffer, vertexCount: model.length / 4, mode: gl.TRIANGLES};
 }
 
-function initBox(u1, v1, u2, v2) {
+function initBox(r, g, b) {
     const model = new Int8Array(6 * 4);
     i = 0;
 
+    const packedColor = (r * 31)|0 | ((g * 63)|0) << 5 | ((b * 31)|0) << 11;
+    const u = packedColor & 0xFF;
+    const v = packedColor >>> 8;
+
     model[i++] = +127;
     model[i++] = +127;
-    model[i++] = u2;
-    model[i++] = v2;
+    model[i++] = u;
+    model[i++] = v;
 
     model[i++] = -127;
     model[i++] = +127;
-    model[i++] = u1;
-    model[i++] = v2;
+    model[i++] = u;
+    model[i++] = v;
 
     model[i++] = +127;
     model[i++] = -127;
-    model[i++] = u2;
-    model[i++] = v1;
+    model[i++] = u;
+    model[i++] = v;
 
     model[i++] = -127;
     model[i++] = -127;
-    model[i++] = u1;
-    model[i++] = v1;
+    model[i++] = u;
+    model[i++] = v;
 
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -79,11 +83,15 @@ function initBox(u1, v1, u2, v2) {
     return {buffer, vertexCount: model.length / 4, mode: gl.TRIANGLE_STRIP};
 }
 
-function initPolygon(verticies, u, v) {
+function initPolygon(verticies, r, g, b) {
     const vertexCount = verticies.length / 2;
     const polygonCount = vertexCount - 2;
     const model = new Int8Array(polygonCount * 3 * 4);
     used = 0;
+
+    const packedColor = (r * 31)|0 | ((g * 63)|0) << 5 | ((b * 31)|0) << 11;
+    const u = packedColor & 0xFF;
+    const v = packedColor >>> 8;
 
     while (verticies.length > 4) {
         for (let i = 0; i < verticies.length; i += 2) {
