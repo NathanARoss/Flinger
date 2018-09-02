@@ -9,7 +9,7 @@ class GameLogic {
         this.bodiesOfWater = [];
         //this.bodiesOfWater.push(new StaticSquare(0, -50000, 100000, 100000, waterBox));
         //this.bodiesOfWater.push(new StaticSquare(0, 15, 2.5, 3.5, waterBox));
-        this.bodiesOfWater.push(new StaticCircle(0, 0, 10, waterCircle));
+        this.bodiesOfWater.push(new StaticCircle(0, 0, 3, waterCircle));
 
         this.rigidBodies = [];
 
