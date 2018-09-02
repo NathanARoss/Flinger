@@ -1,16 +1,17 @@
 class GameLogic {
     constructor() {
-        this.player = new PhysicsObj(0, 0, 0.5);
+        const fishModel = initCircle(gl, 5, 1, 1, 0);
+        //const waterBox = initBox(gl, 0, 0.412, 0.58);
+        const waterCircle = initCircle(gl, 5, 0, 0.412, 0.58);
+        
+        this.player = new PhysicsObj(0, 0, 0.5, fishModel);
 
         this.bodiesOfWater = [];
-        this.bodiesOfWater.push(new StaticSquare(0, -50000, 100000, 100000));
-        this.bodiesOfWater.push(new StaticSquare(0, 15, 2.5, 3.5));
+        //this.bodiesOfWater.push(new StaticSquare(0, -50000, 100000, 100000, waterBox));
+        //this.bodiesOfWater.push(new StaticSquare(0, 15, 2.5, 3.5, waterBox));
+        this.bodiesOfWater.push(new StaticCircle(0, 0, 10, waterCircle));
 
         this.rigidBodies = [];
-        let verticies = [-100, -50, -50, -10, -20, 5, -10, 0, 0, -10, 10, 0, 20, 5, 50, -10, 100, -50];
-        this.rigidBodies.push(new StaticRigidBody(0, 0, verticies, 200, [1, 0.9, 0.4]));
-        verticies = [0, -100, -100, 0, -80, 50, -30, 45, 0, 10, 30, 45, 80, 50, 100, 0];
-        this.rigidBodies.push(new StaticRigidBody(0, 15, verticies, 10, [1, 0.5, 0.5]));
 
         this.lastTick = -1;
         this.MS_PER_TICK = 0;
@@ -64,7 +65,7 @@ class GameLogic {
 }
 
 class PhysicsObj {
-    constructor(x = 0, y = 0, r = 1, vx = 0, vy = 0, angle = 0) {
+    constructor(x = 0, y = 0, r = 1, model, vx = 0, vy = 0, angle = 0) {
         this.x = x;
         this.y = y;
         this.r = r;
@@ -73,6 +74,7 @@ class PhysicsObj {
         this.vx = vx;
         this.vy = vy;
         this.angle = angle;
+        this.model = model;
     }
 
     tick() {
@@ -82,11 +84,16 @@ class PhysicsObj {
         debugText.textContent = `position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})\nvelocity: (${(this.vx * gameLogic.TICKS_PER_SECOND).toFixed(2)}, ${(this.vy * gameLogic.TICKS_PER_SECOND).toFixed(2)})`;
 
         if (!this.held) {
+            const friction = 255 / 256;
+            
             const steps = Math.ceil(Math.max(Math.abs(this.vx / this.r), Math.abs(this.vy / this.r)));
             const stepX = this.vx / steps;
             const stepY = this.vy / steps;
 
-            this.vy -= 1 / 64;
+            const gravity = [-this.x, -this.y];
+            normalize(gravity);
+            this.vx = (this.vx + gravity[0] / 64) * friction;
+            this.vy = (this.vy + gravity[1] / 64) * friction;
 
             for (let i = 0; i < steps; ++i) {
                 this.x += stepX;
@@ -136,11 +143,12 @@ class PhysicsObj {
 }
 
 class StaticSquare {
-    constructor(x = 0, y = 0, width, height) {
+    constructor(x = 0, y = 0, width, height, model) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
+        this.model = model;
     }
 
     isColliding(circle) {
@@ -148,6 +156,30 @@ class StaticSquare {
         const cornerY = Math.max(0, Math.abs(circle.y - this.y) - this.height / 2);
 
         return cornerX**2 + cornerY**2 < circle.r**2;
+    }
+    
+    get scale() {
+      return [this.width, this.height];
+    }
+}
+
+class StaticCircle {
+    constructor(x = 0, y = 0, radius, model) {
+        this.x = x;
+        this.y = y;
+        this.r = radius;
+        this.model = model;
+    }
+
+    isColliding(circle) {
+        const dX = circle.x - this.x
+        const dY = circle.y - this.y;
+
+        return dX**2 + dY**2 < (circle.r + this.r)**2;
+    }
+    
+    get scale() {
+      return [this.r * 2, this.r * 2];
     }
 }
 

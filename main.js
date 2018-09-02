@@ -58,9 +58,6 @@ const programInfo = {
 
 const gameLogic = new GameLogic();
 
-const fishModel = initCircleModel(gl, 5);
-const waterModel = initBox(0, 0.412, 0.58);
-
 const camera = [0, 0, 20];
 const camTarget = [0, 0];
 let cameraZoomOut = 1;
@@ -138,7 +135,7 @@ function drawScene(timestamp) {
         camera[1] += rayTowardsNewTarget[1] * speed;
 
         camTarget[0] = camera[0];
-        camTarget[1] = camera[1] + 4;
+        camTarget[1] = camera[1];
     }
 
     Mat4.lookAt(viewMatrix, camera, [...camTarget, 0], [0, 1, 0]);
@@ -152,7 +149,7 @@ function drawScene(timestamp) {
         const scale = [gameLogic.player.r * 2, gameLogic.player.r * (facingRight ? 2 : -2)];
         const position = [playerX, playerY, 0];
         const angle = gameLogic.player.angle;
-        drawModel(fishModel, position, scale, angle);
+        drawModel(gameLogic.player.model, position, scale, angle);
     }
 
     for (const body of gameLogic.rigidBodies) {
@@ -160,7 +157,7 @@ function drawScene(timestamp) {
     }
 
     for (const body of gameLogic.bodiesOfWater) {
-        drawModel(waterModel, [body.x, body.y, -2], [body.width, body.height], 0);
+        drawModel(body.model, [body.x, body.y, -2], body.scale, 0);
     }
 
     gl.disableVertexAttribArray(programInfo.attribLocations.position);

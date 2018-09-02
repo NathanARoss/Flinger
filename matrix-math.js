@@ -17,7 +17,7 @@ class Mat4 {
         out.data[10] = (far + near) * nf;
         out.data[11] = -1;
         out.data[14] = 2 * far * near * nf;
-    };
+    }
 
     static lookAt(out, eye, center, up) {
         /* taken from gl-matrix.js library */    
@@ -73,7 +73,7 @@ class Mat4 {
         out.data[13] = -(y0 * eye[0] + y1 * eye[1] + y2 * eye[2]);
         out.data[14] = -(z0 * eye[0] + z1 * eye[1] + z2 * eye[2]);
         out.data[15] = 1;
-    };
+    }
 
     static multiply(out, a, b) {
         for (let i = 0; i < 16; ++i) {
@@ -82,7 +82,7 @@ class Mat4 {
                         + b.data[2 | i & ~3] * a.data[8 | i & 3]
                         + b.data[3 | i & ~3] * a.data[12 | i & 3];
         }
-    };
+    }
 
     static multiplyVec4(out, mat, vec) {
         for (let i = 0; i < 4; ++i) {
@@ -102,7 +102,7 @@ class Mat4 {
         out.data[13] = a.data[1] * x + a.data[5] * y + a.data[9] * z + a.data[13];
         out.data[14] = a.data[2] * x + a.data[6] * y + a.data[10] * z + a.data[14];
         out.data[15] = a.data[3] * x + a.data[7] * y + a.data[11] * z + a.data[15];
-    };
+    }
 
     static scale(out, a, [x, y, z]) {
         for (let i = 0; i < 4; ++i) {
@@ -111,7 +111,7 @@ class Mat4 {
             out.data[8 + i] = a.data[8 + i] * z;
             out.data[12 + i] = a.data[12 + i];
         }
-    };
+    }
 
     static rotate(out, a, rad, axis) {
         /* taken from gl-matrix.js library */    
@@ -141,7 +141,7 @@ class Mat4 {
             out.data.set(copy.slice(12), 12);
         }
         return out;
-    };
+    }
 
     static invert(out, a) {
         /* taken from gl-matrix.js library */
@@ -184,7 +184,7 @@ class Mat4 {
         out.data[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
         out.data[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
         out.data[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
-    };
+    }
 
     /**
      * returns a ray shooting out of the camera at the given clipspace point
