@@ -4,7 +4,7 @@ class GameLogic {
         //const waterBox = initBox(gl, 0, 0.412, 0.58);
         const waterCircle = initCircle(gl, 5, 0, 0.412, 0.58);
         
-        this.player = new PhysicsObj(0, 0, 0.5, fishModel);
+        this.player = new PhysicsObj(0, 2, 0.5, fishModel);
 
         this.bodiesOfWater = [];
         //this.bodiesOfWater.push(new StaticSquare(0, -50000, 100000, 100000, waterBox));
@@ -12,6 +12,8 @@ class GameLogic {
         this.bodiesOfWater.push(new StaticCircle(0, 0, 3, waterCircle));
 
         this.rigidBodies = [];
+        const verticies = [0, 4, 4, 0, -4, 0];
+        this.rigidBodies.push(new StaticRigidBody(0, 0, verticies, 255, [1, 1, 1]))
 
         this.lastTick = -1;
         this.MS_PER_TICK = 0;

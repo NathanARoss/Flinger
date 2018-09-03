@@ -58,8 +58,9 @@ const programInfo = {
 
 const gameLogic = new GameLogic();
 
-const camera = [0, 0, 20];
+const camera = [0, 0, 5];
 const camTarget = [0, 0];
+const cameraUp = [0, 0, 0];
 let cameraZoomOut = 1;
 
 let prevPointerMovement = performance.now();
@@ -79,7 +80,7 @@ document.body.onresize = function() {
     gl.viewport(0, 0, canvas.width, canvas.height);
 
     const aspectRatio = canvas.clientWidth / canvas.clientHeight;
-    Mat4.perspectiveMatrix(perspectiveMatrix, 45, aspectRatio, 0.125, 1024);
+    Mat4.perspectiveMatrix(perspectiveMatrix, 90, aspectRatio, 0.125, 1024);
 };
 document.body.onresize();
 
@@ -136,9 +137,14 @@ function drawScene(timestamp) {
 
         camTarget[0] = camera[0];
         camTarget[1] = camera[1];
+        
+        cameraUp[0] = playerX;
+        cameraUp[1] = playerY;
+        normalize(cameraUp);
     }
 
-    Mat4.lookAt(viewMatrix, camera, [...camTarget, 0], [0, 1, 0]);
+    
+    Mat4.lookAt(viewMatrix, camera, [...camTarget, 0], cameraUp);
     Mat4.multiply(viewPerspectiveMatrix, perspectiveMatrix, viewMatrix);
 
     gl.enableVertexAttribArray(programInfo.attribLocations.position);
@@ -265,7 +271,7 @@ document.onwheel = function(event) {
     }
 
     const scale = Math.pow(2, cameraZoomOut / 4);
-    camera[2] = 20 * scale;
+    camera[2] = 5 * scale;
     console.log("camera distance", (scale * 100).toFixed(1), "%");
 }
 
@@ -333,7 +339,7 @@ function getWorldSpace(x, y) {
     y = 1 - y / canvas.clientHeight * 2;
     
     const direction = [camTarget[0] - camera[0], camTarget[1] - camera[1], -camera[2]];
-    Mat4.lookAt(viewMatrix, [0, 0, 0], direction, [0, 1, 0]);
+    Mat4.lookAt(viewMatrix, [0, 0, 0], direction, cameraUp);
     Mat4.multiply(viewPerspectiveMatrix, perspectiveMatrix, viewMatrix);
     const ray = Mat4.getRayFromClipspace(viewPerspectiveMatrix, [x, y]);
     const dist = -camera[2] / ray[2];
