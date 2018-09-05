@@ -58,7 +58,8 @@ const programInfo = {
 
 const gameLogic = new GameLogic();
 
-const camera = [0, 0, 5];
+const DEFAULT_CAMERA_DISTANCE = 150;
+const camera = [0, 0, DEFAULT_CAMERA_DISTANCE];
 const camTarget = [0, 0];
 const cameraUp = [0, 0, 0];
 let cameraZoomOut = 1;
@@ -80,7 +81,7 @@ document.body.onresize = function() {
     gl.viewport(0, 0, canvas.width, canvas.height);
 
     const aspectRatio = canvas.clientWidth / canvas.clientHeight;
-    Mat4.perspectiveMatrix(perspectiveMatrix, 90, aspectRatio, 0.125, 1024);
+    Mat4.perspectiveMatrix(perspectiveMatrix, 0.125, aspectRatio, 0.125, 1024);
 };
 document.body.onresize();
 
@@ -271,7 +272,7 @@ document.onwheel = function(event) {
     }
 
     const scale = Math.pow(2, cameraZoomOut / 4);
-    camera[2] = 5 * scale;
+    camera[2] = DEFAULT_CAMERA_DISTANCE * scale;
     console.log("camera distance", (scale * 100).toFixed(1), "%");
 }
 
