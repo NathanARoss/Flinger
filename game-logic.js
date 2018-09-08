@@ -4,15 +4,30 @@ class GameLogic {
         //const waterBox = initBox(gl, 0, 0.412, 0.58);
         const waterCircle = initCircle(gl, 5, 0, 0.412, 0.58);
         
-        this.player = new PhysicsObj(0, 2, 0.5, fishModel);
+        this.player = new PhysicsObj(0, 0, 0.5, fishModel);
 
         this.bodiesOfWater = [];
         //this.bodiesOfWater.push(new StaticSquare(0, -50000, 100000, 100000, waterBox));
         //this.bodiesOfWater.push(new StaticSquare(0, 15, 2.5, 3.5, waterBox));
-        this.bodiesOfWater.push(new StaticCircle(0, 0, 3, waterCircle));
+        this.bodiesOfWater.push(new StaticCircle(0, 0, 5, waterCircle));
+        this.bodiesOfWater.push(new StaticCircle(15, 15, 5, waterCircle));
+        this.bodiesOfWater.push(new StaticCircle(0, 30, 5, waterCircle));
+        this.bodiesOfWater.push(new StaticCircle(-30, 30, 5, waterCircle));
 
         this.rigidBodies = [];
-        const verticies = [0, 4, 4, 0, -4, 0];
+        let verticies = [
+            5, 15,
+            -10, 14,
+            -10, 16,
+        ];
+        this.rigidBodies.push(new StaticRigidBody(0, 0, verticies, 255, [1, 1, 1]))
+
+        verticies = [
+            -29, 35,
+            -29, 25,
+            -31, 24,
+            -31, 36,
+        ]
         this.rigidBodies.push(new StaticRigidBody(0, 0, verticies, 255, [1, 1, 1]))
 
         this.lastTick = -1;
@@ -77,6 +92,8 @@ class PhysicsObj {
         this.vy = vy;
         this.angle = angle;
         this.model = model;
+        this.gravityX = 0;
+        this.gravityY = 0;
     }
 
     tick() {
@@ -87,34 +104,21 @@ class PhysicsObj {
 
         if (!this.held) {
             const friction = 255 / 256;
-            
-            const steps = Math.ceil(Math.max(Math.abs(this.vx / this.r), Math.abs(this.vy / this.r)));
-            const stepX = this.vx / steps;
-            const stepY = this.vy / steps;
+            const gravity = [this.gravityX - this.x, this.gravityY - this.y];
 
-            const gravity = [-this.x, -this.y];
             normalize(gravity);
             this.vx = (this.vx + gravity[0] / 64) * friction;
             this.vy = (this.vy + gravity[1] / 64) * friction;
 
-            for (let i = 0; i < steps; ++i) {
-                this.x += stepX;
-                this.y += stepY;
+            this.addPosition(this.vx, this.vy);
 
-                const collisionData = this.getCollisionData();
-                if (collisionData) {
-                    this.x += collisionData.normal[0] * collisionData.magnitude;
-                    this.y += collisionData.normal[1] * collisionData.magnitude;
-                    const bounce = reflect([this.vx, this.vy], collisionData.normal);
-                    this.vx = bounce[0] * 0.7;
-                    this.vy = bounce[1] * 0.7;
-                    break;
-                }
-            }
-
-            if (gameLogic.getBodyOfWater({x: this.x, y: this.y, r: this.r / 4}) >= 0) {
-                this.vx = 0;
-                this.vy = 0;
+            const bodyOfWater = gameLogic.getBodyOfWater({x: this.x, y: this.y, r: this.r / 4});
+            if (bodyOfWater >= 0) {
+                this.vx *= 0.8;
+                this.vy *= 0.8;
+                const body = gameLogic.bodiesOfWater[bodyOfWater];
+                this.gravityX = body.x;
+                this.gravityY = body.y;
             }
         }
     }
@@ -122,6 +126,27 @@ class PhysicsObj {
     setPosition(x, y) {
         this.x = x;
         this.y = y;
+    }
+
+    addPosition(dx, dy) {
+        const steps = Math.ceil(Math.max(Math.abs(dx / this.r), Math.abs(dy / this.r)));
+        const stepX = dx / steps;
+        const stepY = dy / steps;
+
+        for (let i = 0; i < steps; ++i) {
+            this.x += stepX;
+            this.y += stepY;
+
+            const collisionData = this.getCollisionData();
+            if (collisionData) {
+                this.x += collisionData.normal[0] * collisionData.magnitude;
+                this.y += collisionData.normal[1] * collisionData.magnitude;
+                const bounce = reflect([dx, dy], collisionData.normal);
+                this.vx = bounce[0] * 0.7;
+                this.vy = bounce[1] * 0.7;
+                break;
+            }
+        }
     }
 
     setVelocity(vx, vy) {

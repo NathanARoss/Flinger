@@ -27,6 +27,28 @@ void main(void) {
     gl_FragColor = vec4(vColor, 1.0);
 }`;
 
+const scaledTexturedVsSource =
+`attribute vec4 aPosition;
+attribute vec2 aTexCoord;
+
+uniform mat4 uMVPMatrix;
+
+varying mediump vec2 vTexCoord;
+
+void main(void) {
+    gl_Position = uMVPMatrix * aPosition;
+    vTexCoord = aTexCoord * 1024.0;
+}`;
+
+const texturedFsSource =
+`varying mediump vec2 vTexCoord;
+uniform sampler2D uSampler;
+
+void main(void) {
+    //gl_FragColor = vec4(fract(vTexCoord), 0, 0);
+    gl_FragColor = texture2D(uSampler, vTexCoord);
+}`;
+
 const modelViewMatrix = new Mat4();
 const viewMatrix = new Mat4();
 const perspectiveMatrix = new Mat4();
@@ -36,12 +58,12 @@ const tempMatrix = new Mat4();
 const canvas = document.querySelector("canvas");
 const gl = canvas.getContext("webgl", {
     alpha: false,
-    antialias: false,
     depth: true, //needed for depth culling
     premultipliedAlpha: true,
     preserveDrawingBuffer: false,
     stencil: false,
 });
+
 const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
 const programInfo = {
@@ -52,27 +74,42 @@ const programInfo = {
     },
     uniformLocations: {
         mvpMatrix: gl.getUniformLocation(shaderProgram, 'uMVPMatrix'),
-        uSampler: gl.getUniformLocation(shaderProgram, 'uSampler'),
     },
 };
 
+const scaledTextureShaderProgram = initShaderProgram(gl, scaledTexturedVsSource, texturedFsSource);
+
+const scaledTextureProgramInfo = {
+    program: scaledTextureShaderProgram,
+    attribLocations: {
+        position: gl.getAttribLocation(scaledTextureShaderProgram, 'aPosition'),
+        texCord: gl.getAttribLocation(scaledTextureShaderProgram, 'aTexCoord'),
+    },
+    uniformLocations: {
+        mvpMatrix: gl.getUniformLocation(scaledTextureShaderProgram, 'uMVPMatrix'),
+        uSampler: gl.getUniformLocation(scaledTextureShaderProgram, 'uSampler'),
+    },
+};
+
+const backgroundModel = initTexturedBox(gl, 0, 0, 255, 255);
+
+const gridTexture = loadTexture(gl, "gridcell.png");
+
 const gameLogic = new GameLogic();
 
-const DEFAULT_CAMERA_DISTANCE = 150;
+const DEFAULT_CAMERA_DISTANCE = 25;
 const camera = [0, 0, DEFAULT_CAMERA_DISTANCE];
 const camTarget = [0, 0];
-const cameraUp = [0, 0, 0];
+const cameraUp = [0, 1, 0];
 let cameraZoomOut = 1;
 
 let prevPointerMovement = performance.now();
+let previousFrameTime = performance.now();
 
 
-gl.useProgram(programInfo.program);
-
-gl.clearColor(0.53, 0.81, 0.92, 1);
+//gl.clearColor(0.53, 0.81, 0.92, 1);
+gl.clearColor(0x74/255, 0x74/255, 0x74/255, 1);
 gl.enable(gl.DEPTH_TEST);
-
-requestAnimationFrame(drawScene);
 
 
 document.body.onresize = function() {
@@ -81,7 +118,7 @@ document.body.onresize = function() {
     gl.viewport(0, 0, canvas.width, canvas.height);
 
     const aspectRatio = canvas.clientWidth / canvas.clientHeight;
-    Mat4.perspectiveMatrix(perspectiveMatrix, 0.125, aspectRatio, 0.125, 1024);
+    Mat4.perspectiveMatrix(perspectiveMatrix, 45, aspectRatio, 0.125, 1024);
 };
 document.body.onresize();
 
@@ -119,6 +156,37 @@ function initShaderProgram(gl, vsSource, fsSource) {
 }
 
 
+function loadTexture(gl, url) {
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    const image = new Image();
+    image.src = url;
+
+    image.onload = function() {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+        gl.generateMipmap(gl.TEXTURE_2D);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+        requestAnimationFrame(drawScene);
+    };
+
+    image.onerror = function() {
+        const pixel = new Uint8Array([0, 255, 255]);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, pixel);
+
+        requestAnimationFrame(drawScene);
+    }
+
+    return texture;
+}
+
+
 function drawScene(timestamp) {
     gameLogic.performTicks(timestamp);
 
@@ -127,27 +195,20 @@ function drawScene(timestamp) {
     const playerX = gameLogic.getX(gameLogic.player, timestamp);
     const playerY = gameLogic.getY(gameLogic.player, timestamp);
 
+    const progress = (timestamp - previousFrameTime) / 250;
+    camera[0] = camera[0] + (gameLogic.player.gravityX - camera[0]) * progress;
+    camera[1] = camera[1] + (gameLogic.player.gravityY - camera[1]) * progress;
+
     if (!gameLogic.player.held) {
-        const rayTowardsNewTarget = [playerX - camera[0], playerY - camera[1]];
-        const distance = normalize(rayTowardsNewTarget);
-
-        const speed = distance / 4;
-
-        camera[0] += rayTowardsNewTarget[0] * speed;
-        camera[1] += rayTowardsNewTarget[1] * speed;
-
-        camTarget[0] = camera[0];
-        camTarget[1] = camera[1];
-        
-        cameraUp[0] = playerX;
-        cameraUp[1] = playerY;
-        normalize(cameraUp);
+        camTarget[0] = playerX;
+        camTarget[1] = playerY;
     }
-
+    previousFrameTime = timestamp;
     
     Mat4.lookAt(viewMatrix, camera, [...camTarget, 0], cameraUp);
     Mat4.multiply(viewPerspectiveMatrix, perspectiveMatrix, viewMatrix);
 
+    gl.useProgram(programInfo.program);
     gl.enableVertexAttribArray(programInfo.attribLocations.position);
     gl.enableVertexAttribArray(programInfo.attribLocations.packedColor);
 
@@ -160,12 +221,14 @@ function drawScene(timestamp) {
     }
 
     for (const body of gameLogic.rigidBodies) {
-        drawModel(body.model, [body.x, body.y, -1], [body.scale, body.scale], 0);
+        drawModel(body.model, [body.x, body.y, -0.1], [body.scale, body.scale], 0);
     }
 
     for (const body of gameLogic.bodiesOfWater) {
-        drawModel(body.model, [body.x, body.y, -2], body.scale, 0);
+        drawModel(body.model, [body.x, body.y, -0.2], body.scale, 0);
     }
+
+    drawBackgroundGrid();
 
     gl.disableVertexAttribArray(programInfo.attribLocations.position);
     gl.disableVertexAttribArray(programInfo.attribLocations.packedColor);
@@ -187,6 +250,26 @@ function drawModel(model, position, scale, rotationAngle) {
     gl.vertexAttribPointer(programInfo.attribLocations.position, 2, gl.BYTE, false, 4, 0);
     gl.vertexAttribPointer(programInfo.attribLocations.packedColor, 1, gl.UNSIGNED_SHORT, false, 4, 2);
     gl.drawArrays(model.mode, 0, model.vertexCount);
+}
+
+function drawBackgroundGrid() {
+    gl.useProgram(scaledTextureProgramInfo.program);
+    gl.enableVertexAttribArray(scaledTextureProgramInfo.attribLocations.position);
+
+    modelViewMatrix.data.set(Mat4.IDENTITY.data);
+
+    Mat4.translate(modelViewMatrix, modelViewMatrix, [0, 0, -5, 0]);
+    Mat4.scale(modelViewMatrix, modelViewMatrix, [1024 / 254, 1024 / 254, 1]);
+
+    Mat4.multiply(tempMatrix, viewPerspectiveMatrix, modelViewMatrix);
+    gl.uniformMatrix4fv(scaledTextureProgramInfo.uniformLocations.mvpMatrix, false, tempMatrix.data);
+    
+    gl.bindBuffer(gl.ARRAY_BUFFER, backgroundModel.buffer);
+    gl.vertexAttribPointer(scaledTextureProgramInfo.attribLocations.position, 2, gl.BYTE, false, 4, 0);
+    gl.vertexAttribPointer(scaledTextureProgramInfo.attribLocations.texCord, 2, gl.UNSIGNED_BYTE, true, 4, 2);
+    gl.drawArrays(backgroundModel.mode, 0, backgroundModel.vertexCount);
+
+    gl.disableVertexAttribArray(scaledTextureProgramInfo.attribLocations.position);
 }
 
 
@@ -285,11 +368,9 @@ const onpointerdown = (x, y) => {
 const onpointermove = (x, y) => {
     const [worldX, worldY] = getWorldSpace(x, y);
 
-    const cursorBodyIndex = gameLogic.getBodyOfWater({x: worldX, y: worldY, r: gameLogic.player.r});
     const playerBodyIndex = gameLogic.getBodyOfWater({x: gameLogic.player.x, y: gameLogic.player.y, r: gameLogic.player.r});
     
-    if (this.bodyIndex < 0 && cursorBodyIndex >= 0 && cursorBodyIndex === playerBodyIndex) {
-        gameLogic.player.setPosition(worldX, worldY);
+    if (!gameLogic.player.held && playerBodyIndex >= 0) {
         gameLogic.player.setVelocity(0, 0);
     
         gameLogic.player.held = true;
@@ -297,9 +378,9 @@ const onpointermove = (x, y) => {
 
         this.x = worldX;
         this.y = worldY;
-        this.bodyIndex = cursorBodyIndex;
+        this.bodyIndex = playerBodyIndex;
     }
-    else if (this.bodyIndex >= 0) {
+    else if (gameLogic.player.held) {
         const deltaX = worldX - this.x;
         const deltaY = worldY - this.y;
         
@@ -311,7 +392,6 @@ const onpointermove = (x, y) => {
         const now = performance.now();
 
         if (playerBodyIndex < 0) {
-            this.bodyIndex = -1;
             gameLogic.player.held = false;
             const deltaTime = (now - prevPointerMovement) / 1000;
             const fling = [deltaX / deltaTime, deltaY / deltaTime];
@@ -321,7 +401,7 @@ const onpointermove = (x, y) => {
             fling[1] *= flingSpeed;
             gameLogic.player.setVelocity(...fling);
         } else {
-            gameLogic.player.setPosition(worldX, worldY);
+            gameLogic.player.addPosition(deltaX, deltaY);
         }
 
         this.x = worldX;

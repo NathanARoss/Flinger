@@ -51,7 +51,7 @@ function initCircle(gl, iterations, r, g, b)
 }
 
 function initBox(gl, r, g, b) {
-    const model = new Int8Array(6 * 4);
+    const model = new Int8Array(4 * 4);
     i = 0;
     
     const [u, v] = packColors(r, g, b);
@@ -83,6 +83,37 @@ function initBox(gl, r, g, b) {
     return {buffer, vertexCount: model.length / 4, mode: gl.TRIANGLE_STRIP};
 }
 
+function initTexturedBox(gl, u1, v1, u2, v2) {
+    const model = new Int8Array(4 * 4);
+    i = 0;
+
+    model[i++] = +127;
+    model[i++] = +127;
+    model[i++] = u2;
+    model[i++] = v1;
+
+    model[i++] = -127;
+    model[i++] = +127;
+    model[i++] = u1;
+    model[i++] = v1;
+
+    model[i++] = +127;
+    model[i++] = -127;
+    model[i++] = u2;
+    model[i++] = v2;
+
+    model[i++] = -127;
+    model[i++] = -127;
+    model[i++] = u1;
+    model[i++] = v2;
+
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, model, gl.STATIC_DRAW);
+
+    return {buffer, vertexCount: model.length / 4, mode: gl.TRIANGLE_STRIP};
+}
+
 function initPolygon(verticies, r, g, b) {
     const vertexCount = verticies.length / 2;
     const polygonCount = vertexCount - 2;
@@ -91,7 +122,8 @@ function initPolygon(verticies, r, g, b) {
 
     const [u, v] = packColors(r, g, b);
 
-    while (verticies.length > 4) {
+    let fail = 100;
+    while (verticies.length > 4 && --fail >= 0) {
         for (let i = 0; i < verticies.length; i += 2) {
             const clockwise = ((verticies[i+3] - verticies[i+1]) * (verticies[i+4] - verticies[i+2])
                             - (verticies[i+2] - verticies[i+0]) * (verticies[i+5] - verticies[i+3])) > 0;
