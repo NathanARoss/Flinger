@@ -200,8 +200,8 @@ function drawScene(timestamp) {
     camera[1] = camera[1] + (gameLogic.player.gravityY - camera[1]) * progress;
 
     if (!gameLogic.player.held) {
-        camTarget[0] = playerX;
-        camTarget[1] = playerY;
+        camTarget[0] = camTarget[0] + (playerX - camTarget[0]) * progress;
+        camTarget[1] = camTarget[1] + (playerY - camTarget[1]) * progress;
     }
     previousFrameTime = timestamp;
     
@@ -368,7 +368,7 @@ const onpointerdown = (x, y) => {
 const onpointermove = (x, y) => {
     const [worldX, worldY] = getWorldSpace(x, y);
 
-    const playerBodyIndex = gameLogic.getBodyOfWater({x: gameLogic.player.x, y: gameLogic.player.y, r: gameLogic.player.r});
+    const playerBodyIndex = gameLogic.getBodyOfWater({x: gameLogic.player.x, y: gameLogic.player.y, r: 0});
     
     if (!gameLogic.player.held && playerBodyIndex >= 0) {
         gameLogic.player.setVelocity(0, 0);
@@ -378,7 +378,6 @@ const onpointermove = (x, y) => {
 
         this.x = worldX;
         this.y = worldY;
-        this.bodyIndex = playerBodyIndex;
     }
     else if (gameLogic.player.held) {
         const deltaX = worldX - this.x;
@@ -393,16 +392,17 @@ const onpointermove = (x, y) => {
 
         if (playerBodyIndex < 0) {
             gameLogic.player.held = false;
-            const deltaTime = (now - prevPointerMovement) / 1000;
-            const fling = [deltaX / deltaTime, deltaY / deltaTime];
-            let flingSpeed = normalize(fling);
-            flingSpeed = Math.min(flingSpeed, 50); //max speed of 200 player height per second
-            fling[0] *= flingSpeed;
-            fling[1] *= flingSpeed;
-            gameLogic.player.setVelocity(...fling);
         } else {
             gameLogic.player.addPosition(deltaX, deltaY);
         }
+
+        const deltaTime = (now - prevPointerMovement) / 1000;
+        const fling = [deltaX / deltaTime, deltaY / deltaTime];
+        let flingSpeed = normalize(fling);
+        flingSpeed = Math.min(flingSpeed, 50); //max speed of 200 player height per second
+        fling[0] *= flingSpeed;
+        fling[1] *= flingSpeed;
+        gameLogic.player.setVelocity(...fling);
 
         this.x = worldX;
         this.y = worldY;
@@ -412,7 +412,6 @@ const onpointermove = (x, y) => {
 
 const onpointerup = () => {
     gameLogic.player.held = false;
-    this.bodyIndex = -1;
 }
 
 function getWorldSpace(x, y) {
