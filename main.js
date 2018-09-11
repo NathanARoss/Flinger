@@ -1,6 +1,6 @@
 "use strict";
 
-const debugText = document.getElementById("debugText");
+const debugText = document.getElementById("debug-text");
 
 const vsSource =
 `attribute vec4 aPosition;
@@ -54,6 +54,9 @@ const viewMatrix = new Mat4();
 const perspectiveMatrix = new Mat4();
 const viewPerspectiveMatrix = new Mat4();
 const tempMatrix = new Mat4();
+
+const editor = document.getElementById("object-properties");
+let editorOpened = false;
 
 const canvas = document.querySelector("canvas");
 const gl = canvas.getContext("webgl", {
@@ -273,77 +276,104 @@ function drawBackgroundGrid() {
 }
 
 
+canvas.touchId = -1;
 
-{
-    canvas.touchId = -1;
+canvas.onmousedown = function(event) {
+    onpointerdown(event.x, event.y);
+    this.down = true;
+};
 
-    canvas.onmousedown = function(event) {
-        onpointerdown(event.x, event.y);
-        this.down = true;
-    };
+canvas.onmousemove = function(event) {
+    if (this.down == true)
+        onpointermove(event.x, event.y);
+};
 
-    canvas.onmousemove = function(event) {
-        if (this.down == true)
-            onpointermove(event.x, event.y);
-    };
+canvas.onmouseup = function(event) {
+    onpointerup();
+    this.down = false;
+};
 
-    canvas.onmouseup = function(event) {
+canvas.onmouseleave = function(event) {
+    var e = event.toElement || event.relatedTarget;
+    if (e == debugText || e == this) {
+        return;
+    }
+    if (this.down) {
         onpointerup();
-        this.down = false;
-    };
+    }
+    this.down = false;
+};
 
-    canvas.onmouseleave = function(event) {
-        var e = event.toElement || event.relatedTarget;
-        if (e == debugText || e == this) {
-           return;
-        }
-        if (this.down) {
+canvas.addEventListener("touchstart", function(event) {
+    if (this.touchId === -1) {
+        const touch = event.changedTouches[0];
+        this.touchId = touch.identifier;
+        onpointerdown(touch.pageX, touch.pageY);
+    }
+});
+
+function existingTouchHandler(event) {
+    event.preventDefault();
+
+    for (const touch of event.changedTouches) {
+        if (touch.identifier === this.touchId) {
+        switch (event.type) {
+            case "touchmove":
+            onpointermove(touch.pageX, touch.pageY);
+            break;
+    
+            case "touchend":
+            case "touchcancel":
             onpointerup();
+            this.touchId = -1;
+            break;
         }
-        this.down = false;
-    };
-
-    canvas.addEventListener("touchstart", function(event) {
-        if (this.touchId === -1) {
-            const touch = event.changedTouches[0];
-            this.touchId = touch.identifier;
-            onpointerdown(touch.pageX, touch.pageY);
         }
-    });
-
-    function existingTouchHandler(event) {
-        event.preventDefault();
-
-        for (const touch of event.changedTouches) {
-          if (touch.identifier === this.touchId) {
-            switch (event.type) {
-              case "touchmove":
-                onpointermove(touch.pageX, touch.pageY);
-              break;
-      
-              case "touchend":
-              case "touchcancel":
-                onpointerup();
-                this.touchId = -1;
-              break;
-            }
-          }
-        }
-      }
-
-    canvas.addEventListener("touchmove", existingTouchHandler);
-    canvas.addEventListener("touchend", existingTouchHandler);
-    canvas.addEventListener("touchcancel", existingTouchHandler);
+    }
 }
 
+canvas.addEventListener("touchmove", existingTouchHandler);
+canvas.addEventListener("touchend", existingTouchHandler);
+canvas.addEventListener("touchcancel", existingTouchHandler);
+
+const objectList = document.getElementById("object-list");
+const spawnButton = document.getElementById("spawn-object");
+spawnButton.addEventListener("click", function(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    const objName = objectList.options[objectList.selectedIndex].value;
+    gameLogic.spawnObject(objName);
+
+    //act as if the mouse clicked, so following mouse movement is tracked
+    canvas.down = true;
+});
+
 document.onkeydown = function(event) {
-    if (event.key >= '0' && event.key <= '9') {
-        const tickRateScale = Math.pow(1/2, parseInt(event.key));
-        gameLogic.setTickRateScale(tickRateScale);
+    if (!editorOpened) {
+        if (event.key >= '0' && event.key <= '9') {
+            const tickRateScale = Math.pow(1/2, parseInt(event.key));
+            gameLogic.setTickRateScale(tickRateScale);
+        }
     }
 
-    if (event.key === ".") {
-        gameLogic.togglePhysics();
+    if (event.key === "e") {
+        editor.classList.toggle("hidden");
+        editorOpened = !editorOpened;
+        if (editorOpened) {
+            gameLogic.pausePhysics();
+        } else {
+            gameLogic.resumePhysics();
+        }
+    }
+
+    if (editorOpened) {
+        if (event.key === "1") {//} >= "1" && event.key <= String(objectList.options.length)) {
+            const objName = objectList.options[parseInt(event.key) - 1].value;
+            gameLogic.spawnObject(objName);
+
+            //act as if the mouse clicked, so following mouse movement is tracked
+            canvas.down = true;
+        }
     }
 }
 
@@ -360,12 +390,25 @@ document.onwheel = function(event) {
 }
 
 const onpointerdown = (x, y) => {
-    this.bodyIndex = -1;
-    gameLogic.player.held = false;
-    onpointermove(x, y);
+    if (editorOpened) {
+        const [worldX, worldY] = getWorldSpace(x, y);
+        gameLogic.pointerDownWithEditorOpened(worldX, worldY);
+
+        this.x = worldX;
+        this.y = worldY;
+    } else {
+        gameLogic.player.held = false;
+        onpointermove(x, y);
+    }
 }
 
 const onpointermove = (x, y) => {
+    if (editorOpened) {
+        const [worldX, worldY] = getWorldSpace(x, y);
+        gameLogic.pointerMovedWithEditorOpened(worldX, worldY);
+        return;
+    }
+        
     const [worldX, worldY] = getWorldSpace(x, y);
 
     const playerBodyIndex = gameLogic.getBodyOfWater({x: gameLogic.player.x, y: gameLogic.player.y, r: 0});
@@ -388,14 +431,13 @@ const onpointermove = (x, y) => {
             gameLogic.player.setAngle(angle);
         }
 
-        const now = performance.now();
-
         if (playerBodyIndex < 0) {
             gameLogic.player.held = false;
         } else {
             gameLogic.player.addPosition(deltaX, deltaY);
         }
 
+        const now = performance.now();
         const deltaTime = (now - prevPointerMovement) / 1000;
         const fling = [deltaX / deltaTime, deltaY / deltaTime];
         let flingSpeed = normalize(fling);
@@ -412,6 +454,11 @@ const onpointermove = (x, y) => {
 
 const onpointerup = () => {
     gameLogic.player.held = false;
+
+    if (editorOpened) {
+        gameLogic.pointerUpWithEditorOpened();
+        return;
+    }
 }
 
 function getWorldSpace(x, y) {

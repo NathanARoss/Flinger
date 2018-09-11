@@ -1,39 +1,34 @@
 class GameLogic {
     constructor() {
         const fishModel = initCircle(gl, 5, 1, 1, 0);
-        //const waterBox = initBox(gl, 0, 0.412, 0.58);
-        const waterCircle = initCircle(gl, 5, 0, 0.412, 0.58);
+        this.waterCircle = initCircle(gl, 5, 0, 0.412, 0.58);
         
         this.player = new PhysicsObj(0, 0, 0.5, fishModel);
 
         this.bodiesOfWater = [];
-        //this.bodiesOfWater.push(new StaticSquare(0, -50000, 100000, 100000, waterBox));
-        //this.bodiesOfWater.push(new StaticSquare(0, 15, 2.5, 3.5, waterBox));
-        this.bodiesOfWater.push(new StaticCircle(0, 0, 5, waterCircle));
-        this.bodiesOfWater.push(new StaticCircle(15, 15, 5, waterCircle));
-        this.bodiesOfWater.push(new StaticCircle(0, 30, 5, waterCircle));
-        this.bodiesOfWater.push(new StaticCircle(-30, 30, 5, waterCircle));
-
         this.rigidBodies = [];
-        let verticies = [
-            5, 15,
-            -10, 14,
-            -10, 16,
-        ];
-        this.rigidBodies.push(new StaticRigidBody(0, 0, verticies, 255, [1, 1, 1]))
-
-        verticies = [
-            -29, 35,
-            -29, 25,
-            -31, 24,
-            -31, 36,
-        ]
-        this.rigidBodies.push(new StaticRigidBody(0, 0, verticies, 255, [1, 1, 1]))
 
         this.lastTick = -1;
         this.MS_PER_TICK = 0;
         this.TICKS_PER_SECOND = 0;
         this.setTickRateScale(1);
+
+        const parent = this;
+        const propertiesForm = document.getElementById("object-properties");
+        this.properties = new Map();
+        for (const input of propertiesForm.querySelectorAll("input")) {
+            this.properties.set(input.id, input);
+            input.disabled = true;
+            input.addEventListener("change", function(event) {
+                if (parent.selectedObject) {
+                    console.log(event.target.id, ":", event.target.value);
+                    parent.selectedObject[event.target.id] = event.target.value;
+                }
+            });
+        }
+
+        this.selectedObject = null;
+        this.draggedObject = null;
     }
 
     tick() {
@@ -72,12 +67,76 @@ class GameLogic {
         this.lastTick = performance.now();
     }
 
-    togglePhysics() {
-        if (this.lastTick === 1e100) {
-            this.lastTick = performance.now();
-        } else {
-            this.lastTick = 1e100;
+    resumePhysics() {
+        this.lastTick = performance.now();
+    }
+
+    pausePhysics() {
+        this.lastTick = 1e100;
+    }
+
+    spawnObject(objName) {
+        switch (objName) {
+            case "body-of-water":
+                const newWater = new StaticCircle(0, 0, 1, this.waterCircle);
+                this.bodiesOfWater.push(newWater);
+
+                this.properties.forEach(prop => prop.disabled = true);
+                for (const prop of ["x", "y", "size"]) {
+                    this.properties.get(prop).disabled = false;
+                    this.properties.get(prop).value = newWater[prop];
+                }
+        
+                this.selectedObject = newWater;
+                this.draggedObject = {obj: newWater, xOff: 0, yOff: 0};
+            break;
+
+            case "polygon-obstacle":
+                //TODO
+            break;
+
+            default:
+                console.log("unrecognized object:", objName);
+            return;
         }
+    }
+
+    pointerDownWithEditorOpened(worldX, worldY) {
+        const cursor = {x: worldX, y: worldY, r: 0};
+
+        //grab the newest body of water, not the oldest
+        for (let i = this.bodiesOfWater.length - 1; i >= 0; --i) {
+            const body = this.bodiesOfWater[i];
+            if (body.isColliding(cursor)) {
+                this.selectedObject = body;
+
+                this.properties.forEach(prop => prop.disabled = true);
+                for (const prop of ["x", "y", "size"]) {
+                    this.properties.get(prop).disabled = false;
+                    this.properties.get(prop).value = body[prop];
+                }
+
+                this.selectedObject = body;
+                this.draggedObject = {obj: body, xOff: body.x - worldX, yOff: body.y - worldY};
+                return;
+            }
+        }
+    }
+
+    pointerMovedWithEditorOpened(worldX, worldY) {
+        if (this.draggedObject) {
+            const {obj, xOff, yOff} = this.draggedObject;
+
+            obj.x = worldX + xOff;
+            obj.y = worldY + yOff;
+            for (const prop of ["x", "y"]) {
+                this.properties.get(prop).value = obj[prop];
+            }
+        }
+    }
+
+    pointerUpWithEditorOpened() {
+        this.draggedObject = null;
     }
 }
 
@@ -112,7 +171,7 @@ class PhysicsObj {
 
             this.addPosition(this.vx, this.vy);
 
-            const bodyOfWater = gameLogic.getBodyOfWater({x: this.x, y: this.y, r: this.r / 4});
+            const bodyOfWater = gameLogic.getBodyOfWater({x: this.x, y: this.y, r: 0});
             if (bodyOfWater >= 0) {
                 this.vx *= 0.8;
                 this.vy *= 0.8;
@@ -169,32 +228,11 @@ class PhysicsObj {
     }
 }
 
-class StaticSquare {
-    constructor(x = 0, y = 0, width, height, model) {
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-        this.model = model;
-    }
-
-    isColliding(circle) {
-        const cornerX = Math.max(0, Math.abs(circle.x - this.x) - this.width / 2);
-        const cornerY = Math.max(0, Math.abs(circle.y - this.y) - this.height / 2);
-
-        return cornerX**2 + cornerY**2 < circle.r**2;
-    }
-    
-    get scale() {
-      return [this.width, this.height];
-    }
-}
-
 class StaticCircle {
     constructor(x = 0, y = 0, radius, model) {
         this.x = x;
         this.y = y;
-        this.r = radius;
+        this.size = radius;
         this.model = model;
     }
 
@@ -202,11 +240,11 @@ class StaticCircle {
         const dX = circle.x - this.x
         const dY = circle.y - this.y;
 
-        return dX**2 + dY**2 < (circle.r + this.r)**2;
+        return dX**2 + dY**2 < (circle.r + this.size)**2;
     }
     
     get scale() {
-      return [this.r * 2, this.r * 2];
+      return [this.size * 2, this.size * 2];
     }
 }
 
@@ -222,7 +260,7 @@ class StaticRigidBody {
         this.verticies.push(this.verticies[0], this.verticies[1]);
 
         this.model = initPolygon(verticies, ...color);
-        this.scale = scale;
+        this.size = scale;
     }
 
     getCollisionData(physicsObj) {
