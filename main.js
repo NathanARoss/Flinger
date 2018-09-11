@@ -439,6 +439,8 @@ const onpointermove = (x, y) => {
 
         const now = performance.now();
         const deltaTime = (now - prevPointerMovement) / 1000;
+        prevPointerMovement = now;
+
         const fling = [deltaX / deltaTime, deltaY / deltaTime];
         let flingSpeed = normalize(fling);
         flingSpeed = Math.min(flingSpeed, 50); //max speed of 200 player height per second
@@ -448,7 +450,6 @@ const onpointermove = (x, y) => {
 
         this.x = worldX;
         this.y = worldY;
-        prevPointerMovement = now;
     }
 }
 
