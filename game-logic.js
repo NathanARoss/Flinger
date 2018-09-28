@@ -138,6 +138,17 @@ class GameLogic {
     pointerUpWithEditorOpened() {
         this.draggedObject = null;
     }
+
+    wheelScrolledWithEditorOpened(deltaY) {
+        if (this.draggedObject) {
+            const {obj} = this.draggedObject;
+
+            obj.size = Math.max(obj.size + (deltaY < 0 ? 1 : -1), 0);
+            return true;
+        }
+
+        return false;
+    }
 }
 
 class PhysicsObj {

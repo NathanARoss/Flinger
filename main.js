@@ -378,15 +378,17 @@ document.onkeydown = function(event) {
 }
 
 document.onwheel = function(event) {
-    if (event.deltaY > 0) {
-        ++cameraZoomOut;
-    } else {
-        --cameraZoomOut;
+    if (!gameLogic.wheelScrolledWithEditorOpened(event.deltaY)) {
+        if (event.deltaY > 0) {
+            ++cameraZoomOut;
+        } else {
+            --cameraZoomOut;
+        }
+    
+        const scale = Math.pow(2, cameraZoomOut / 4);
+        camera[2] = DEFAULT_CAMERA_DISTANCE * scale;
+        console.log("camera distance", (scale * 100).toFixed(1), "%");
     }
-
-    const scale = Math.pow(2, cameraZoomOut / 4);
-    camera[2] = DEFAULT_CAMERA_DISTANCE * scale;
-    console.log("camera distance", (scale * 100).toFixed(1), "%");
 }
 
 const onpointerdown = (x, y) => {
