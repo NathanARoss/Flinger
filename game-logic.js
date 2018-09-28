@@ -143,7 +143,8 @@ class GameLogic {
         if (this.draggedObject) {
             const {obj} = this.draggedObject;
 
-            obj.size = Math.max(obj.size + (deltaY < 0 ? 1 : -1), 0);
+            obj.size = Math.max(obj.size + (deltaY < 0 ? 1 : -1), 0.125);
+            this.properties.get("size").value = obj.size;
             return true;
         }
 
