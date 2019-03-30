@@ -1,5 +1,4 @@
-function initCircle(gl, iterations, r, g, b)
-{
+export function initCircle(gl, iterations, r, g, b) {
     if (typeof iterations !== "number" || iterations < 1)
         iterations = 1;
 
@@ -15,12 +14,12 @@ function initCircle(gl, iterations, r, g, b)
     const model = new Int8Array(count * 4);
     let i = 0;
     const radius = 127;
-    
+
     const [u, v] = packColors(r, g, b);
 
     //first iteration
     for (let vertex = 0; vertex < 3; ++vertex) {
-        let theta = Math.PI * 2/3 * vertex;
+        let theta = Math.PI * 2 / 3 * vertex;
         model[i++] = Math.cos(theta) * radius;
         model[i++] = Math.sin(theta) * radius;
         model[i++] = u;
@@ -47,13 +46,17 @@ function initCircle(gl, iterations, r, g, b)
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, model, gl.STATIC_DRAW);
 
-    return {buffer, vertexCount: model.length / 4, mode: gl.TRIANGLES};
+    return {
+        buffer,
+        vertexCount: model.length / 4,
+        mode: gl.TRIANGLES
+    };
 }
 
-function initBox(gl, r, g, b) {
+export function initBox(gl, r, g, b) {
     const model = new Int8Array(4 * 4);
     i = 0;
-    
+
     const [u, v] = packColors(r, g, b);
 
     model[i++] = +127;
@@ -80,12 +83,16 @@ function initBox(gl, r, g, b) {
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, model, gl.STATIC_DRAW);
 
-    return {buffer, vertexCount: model.length / 4, mode: gl.TRIANGLE_STRIP};
+    return {
+        buffer,
+        vertexCount: model.length / 4,
+        mode: gl.TRIANGLE_STRIP
+    };
 }
 
-function initTexturedBox(gl, u1, v1, u2, v2) {
+export function initTexturedBox(gl, u1, v1, u2, v2) {
     const model = new Int8Array(4 * 4);
-    i = 0;
+    let i = 0;
 
     model[i++] = +127;
     model[i++] = +127;
@@ -111,10 +118,14 @@ function initTexturedBox(gl, u1, v1, u2, v2) {
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, model, gl.STATIC_DRAW);
 
-    return {buffer, vertexCount: model.length / 4, mode: gl.TRIANGLE_STRIP};
+    return {
+        buffer,
+        vertexCount: model.length / 4,
+        mode: gl.TRIANGLE_STRIP
+    };
 }
 
-function initPolygon(verticies, r, g, b) {
+export function initPolygon(gl, verticies, r, g, b) {
     const vertexCount = verticies.length / 2;
     const polygonCount = vertexCount - 2;
     const model = new Int8Array(polygonCount * 3 * 4);
@@ -125,9 +136,9 @@ function initPolygon(verticies, r, g, b) {
     let fail = 100;
     while (verticies.length > 4 && --fail >= 0) {
         for (let i = 0; i < verticies.length; i += 2) {
-            const clockwise = ((verticies[i+3] - verticies[i+1]) * (verticies[i+4] - verticies[i+2])
-                            - (verticies[i+2] - verticies[i+0]) * (verticies[i+5] - verticies[i+3])) > 0;
-            
+            const clockwise = ((verticies[i + 3] - verticies[i + 1]) * (verticies[i + 4] - verticies[i + 2]) -
+                (verticies[i + 2] - verticies[i + 0]) * (verticies[i + 5] - verticies[i + 3])) > 0;
+
             if (clockwise) {
                 model[used++] = verticies[i];
                 model[used++] = verticies[i + 1];
@@ -154,12 +165,16 @@ function initPolygon(verticies, r, g, b) {
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, model, gl.STATIC_DRAW);
 
-    return {buffer, vertexCount: model.length / 4, mode: gl.TRIANGLES};
+    return {
+        buffer,
+        vertexCount: model.length / 4,
+        mode: gl.TRIANGLES
+    };
 }
 
-function packColors(r, g, b) {
-  const packedColor = (r * 31)|0 | ((g * 63)|0) << 5 | ((b * 31)|0) << 11;
-  const u = packedColor & 0xFF;
-  const v = packedColor >>> 8;
-  return [u, v];
+export function packColors(r, g, b) {
+    const packedColor = (r * 31) | 0 | ((g * 63) | 0) << 5 | ((b * 31) | 0) << 11;
+    const u = packedColor & 0xFF;
+    const v = packedColor >>> 8;
+    return [u, v];
 }

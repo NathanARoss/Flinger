@@ -1,18 +1,28 @@
-"use strict";
+import {
+    Mat4,
+    Vec4,
+    normalize,
+    reflect
+} from "./matrix-math.mjs";
 
-const debugText = document.getElementById("debug-text");
+import {
+    initTexturedBox,
+} from "./model-builder.mjs";
+
+import {
+    GameLogic,
+    setTickRateScale
+} from "./game-logic.mjs";
+
+const debugText = document.getElementById("debugText");
 
 const vsSource =
-`attribute vec4 aPosition;
+    `attribute vec4 aPosition;
 attribute float aPackedColor;
-
 uniform mat4 uMVPMatrix;
-
 varying lowp vec3 vColor;
-
 void main(void) {
     gl_Position = uMVPMatrix * aPosition;
-
     vec3 color; //extract colors from 0bBBBBBGGGGGGRRRRR
     color.b = floor(aPackedColor / 32.0 / 64.0);
     color.g = floor(aPackedColor / 32.0) - color.b * 64.0;
@@ -21,29 +31,24 @@ void main(void) {
 }`;
 
 const fsSource =
-`varying lowp vec3 vColor;
-
+    `varying lowp vec3 vColor;
 void main(void) {
     gl_FragColor = vec4(vColor, 1.0);
 }`;
 
 const scaledTexturedVsSource =
-`attribute vec4 aPosition;
+    `attribute vec4 aPosition;
 attribute vec2 aTexCoord;
-
 uniform mat4 uMVPMatrix;
-
 varying mediump vec2 vTexCoord;
-
 void main(void) {
     gl_Position = uMVPMatrix * aPosition;
     vTexCoord = aTexCoord * 1024.0;
 }`;
 
 const texturedFsSource =
-`varying mediump vec2 vTexCoord;
+    `varying mediump vec2 vTexCoord;
 uniform sampler2D uSampler;
-
 void main(void) {
     //gl_FragColor = vec4(fract(vTexCoord), 0, 0);
     gl_FragColor = texture2D(uSampler, vTexCoord);
@@ -54,9 +59,6 @@ const viewMatrix = new Mat4();
 const perspectiveMatrix = new Mat4();
 const viewPerspectiveMatrix = new Mat4();
 const tempMatrix = new Mat4();
-
-const editor = document.getElementById("object-properties");
-let editorOpened = false;
 
 const canvas = document.querySelector("canvas");
 const gl = canvas.getContext("webgl", {
@@ -96,9 +98,9 @@ const scaledTextureProgramInfo = {
 
 const backgroundModel = initTexturedBox(gl, 0, 0, 255, 255);
 
-const gridTexture = loadTexture(gl, "gridcell.png");
+loadTexture(gl, "gridcell.png");
 
-const gameLogic = new GameLogic();
+const gameLogic = new GameLogic(gl);
 
 const DEFAULT_CAMERA_DISTANCE = 25;
 const camera = [0, 0, DEFAULT_CAMERA_DISTANCE];
@@ -111,11 +113,11 @@ let previousFrameTime = performance.now();
 
 
 //gl.clearColor(0.53, 0.81, 0.92, 1);
-gl.clearColor(0x74/255, 0x74/255, 0x74/255, 1);
+gl.clearColor(0x74 / 255, 0x74 / 255, 0x74 / 255, 1);
 gl.enable(gl.DEPTH_TEST);
 
 
-document.body.onresize = function() {
+document.body.onresize = function () {
     canvas.width = window.innerWidth * window.devicePixelRatio;
     canvas.height = window.innerHeight * window.devicePixelRatio;
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -166,7 +168,7 @@ function loadTexture(gl, url) {
     const image = new Image();
     image.src = url;
 
-    image.onload = function() {
+    image.onload = function () {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
         gl.generateMipmap(gl.TEXTURE_2D);
@@ -179,7 +181,7 @@ function loadTexture(gl, url) {
         requestAnimationFrame(drawScene);
     };
 
-    image.onerror = function() {
+    image.onerror = function () {
         const pixel = new Uint8Array([0, 255, 255]);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, pixel);
 
@@ -207,7 +209,7 @@ function drawScene(timestamp) {
         camTarget[1] = camTarget[1] + (playerY - camTarget[1]) * progress;
     }
     previousFrameTime = timestamp;
-    
+
     Mat4.lookAt(viewMatrix, camera, [...camTarget, 0], cameraUp);
     Mat4.multiply(viewPerspectiveMatrix, perspectiveMatrix, viewMatrix);
 
@@ -248,7 +250,7 @@ function drawModel(model, position, scale, rotationAngle) {
 
     Mat4.multiply(tempMatrix, viewPerspectiveMatrix, modelViewMatrix);
     gl.uniformMatrix4fv(programInfo.uniformLocations.mvpMatrix, false, tempMatrix.data);
-    
+
     gl.bindBuffer(gl.ARRAY_BUFFER, model.buffer);
     gl.vertexAttribPointer(programInfo.attribLocations.position, 2, gl.BYTE, false, 4, 0);
     gl.vertexAttribPointer(programInfo.attribLocations.packedColor, 1, gl.UNSIGNED_SHORT, false, 4, 2);
@@ -266,7 +268,7 @@ function drawBackgroundGrid() {
 
     Mat4.multiply(tempMatrix, viewPerspectiveMatrix, modelViewMatrix);
     gl.uniformMatrix4fv(scaledTextureProgramInfo.uniformLocations.mvpMatrix, false, tempMatrix.data);
-    
+
     gl.bindBuffer(gl.ARRAY_BUFFER, backgroundModel.buffer);
     gl.vertexAttribPointer(scaledTextureProgramInfo.attribLocations.position, 2, gl.BYTE, false, 4, 0);
     gl.vertexAttribPointer(scaledTextureProgramInfo.attribLocations.texCord, 2, gl.UNSIGNED_BYTE, true, 4, 2);
@@ -276,198 +278,157 @@ function drawBackgroundGrid() {
 }
 
 
-canvas.touchId = -1;
 
-canvas.onmousedown = function(event) {
-    onpointerdown(event.x, event.y);
-    this.down = true;
-};
+{
+    let touchId = -1;
+    let down = false;
+    let prevWorldX = 0;
+    let prevWorldY = 0;
 
-canvas.onmousemove = function(event) {
-    if (this.down == true)
-        onpointermove(event.x, event.y);
-};
+    canvas.addEventListener("mousedown", function (event) {
+        onpointerdown(event.x, event.y);
+        down = true;
+    });
 
-canvas.onmouseup = function(event) {
-    onpointerup();
-    this.down = false;
-};
+    canvas.addEventListener("mousemove", function (event) {
+        if (down == true) {
+            onpointermove(event.x, event.y);
+        }
+    });
 
-canvas.onmouseleave = function(event) {
-    var e = event.toElement || event.relatedTarget;
-    if (e == debugText || e == this) {
-        return;
-    }
-    if (this.down) {
+    canvas.addEventListener("mouseup", function (event) {
         onpointerup();
-    }
-    this.down = false;
-};
+        down = false;
+    });
 
-canvas.addEventListener("touchstart", function(event) {
-    if (this.touchId === -1) {
-        const touch = event.changedTouches[0];
-        this.touchId = touch.identifier;
-        onpointerdown(touch.pageX, touch.pageY);
-    }
-});
-
-function existingTouchHandler(event) {
-    event.preventDefault();
-
-    for (const touch of event.changedTouches) {
-        if (touch.identifier === this.touchId) {
-        switch (event.type) {
-            case "touchmove":
-            onpointermove(touch.pageX, touch.pageY);
-            break;
-    
-            case "touchend":
-            case "touchcancel":
+    canvas.addEventListener("mouseleave", function (event) {
+        var e = event.toElement || event.relatedTarget;
+        if (e == debugText || e == this) {
+            return;
+        }
+        if (down) {
             onpointerup();
-            this.touchId = -1;
-            break;
         }
+        down = false;
+    });
+
+    canvas.addEventListener("touchstart", function (event) {
+        if (touchId === -1) {
+            const touch = event.changedTouches[0];
+            touchId = touch.identifier;
+            onpointerdown(touch.pageX, touch.pageY);
         }
-    }
-}
+    });
 
-canvas.addEventListener("touchmove", existingTouchHandler);
-canvas.addEventListener("touchend", existingTouchHandler);
-canvas.addEventListener("touchcancel", existingTouchHandler);
+    function existingTouchHandler(event) {
+        event.preventDefault();
 
-const objectList = document.getElementById("object-list");
-const spawnButton = document.getElementById("spawn-object");
-spawnButton.addEventListener("click", function(event) {
-    event.stopPropagation();
-    event.preventDefault();
-    const objName = objectList.options[objectList.selectedIndex].value;
-    gameLogic.spawnObject(objName);
+        for (const touch of event.changedTouches) {
+            if (touch.identifier === touchId) {
+                switch (event.type) {
+                    case "touchmove":
+                        onpointermove(touch.pageX, touch.pageY);
+                        break;
 
-    //act as if the mouse clicked, so following mouse movement is tracked
-    canvas.down = true;
-});
-
-document.onkeydown = function(event) {
-    if (!editorOpened) {
-        if (event.key >= '0' && event.key <= '9') {
-            const tickRateScale = Math.pow(1/2, parseInt(event.key));
-            gameLogic.setTickRateScale(tickRateScale);
-        }
-    }
-
-    if (event.key === "e") {
-        editor.classList.toggle("hidden");
-        editorOpened = !editorOpened;
-        if (editorOpened) {
-            gameLogic.pausePhysics();
-        } else {
-            gameLogic.resumePhysics();
+                    case "touchend":
+                    case "touchcancel":
+                        onpointerup();
+                        touchId = -1;
+                        break;
+                }
+            }
         }
     }
 
-    if (editorOpened) {
-        if (event.key === "1") {//} >= "1" && event.key <= String(objectList.options.length)) {
-            const objName = objectList.options[parseInt(event.key) - 1].value;
-            gameLogic.spawnObject(objName);
+    canvas.addEventListener("touchmove", existingTouchHandler);
+    canvas.addEventListener("touchend", existingTouchHandler);
+    canvas.addEventListener("touchcancel", existingTouchHandler);
 
-            //act as if the mouse clicked, so following mouse movement is tracked
-            canvas.down = true;
-        }
-    }
-}
-
-document.onwheel = function(event) {
-    if (!gameLogic.wheelScrolledWithEditorOpened(event.deltaY)) {
-        if (event.deltaY > 0) {
-            ++cameraZoomOut;
-        } else {
-            --cameraZoomOut;
-        }
-    
-        const scale = Math.pow(2, cameraZoomOut / 4);
-        camera[2] = DEFAULT_CAMERA_DISTANCE * scale;
-        console.log("camera distance", (scale * 100).toFixed(1), "%");
-    }
-}
-
-const onpointerdown = (x, y) => {
-    if (editorOpened) {
-        const [worldX, worldY] = getWorldSpace(x, y);
-        gameLogic.pointerDownWithEditorOpened(worldX, worldY);
-
-        this.x = worldX;
-        this.y = worldY;
-    } else {
+    function onpointerdown(x, y) {
         gameLogic.player.held = false;
         onpointermove(x, y);
     }
-}
 
-const onpointermove = (x, y) => {
-    if (editorOpened) {
+    function onpointermove(x, y) {
         const [worldX, worldY] = getWorldSpace(x, y);
-        gameLogic.pointerMovedWithEditorOpened(worldX, worldY);
-        return;
-    }
-        
-    const [worldX, worldY] = getWorldSpace(x, y);
 
-    const playerBodyIndex = gameLogic.getBodyOfWater({x: gameLogic.player.x, y: gameLogic.player.y, r: 0});
-    
-    if (!gameLogic.player.held && playerBodyIndex >= 0) {
-        gameLogic.player.setVelocity(0, 0);
-    
-        gameLogic.player.held = true;
-        prevPointerMovement = performance.now();
+        const bodyOfCollision = gameLogic.getBodyOfWater({
+            x: gameLogic.player.x,
+            y: gameLogic.player.y,
+            r: 0
+        });
 
-        this.x = worldX;
-        this.y = worldY;
-    }
-    else if (gameLogic.player.held) {
-        const deltaX = worldX - this.x;
-        const deltaY = worldY - this.y;
-        
-        if (deltaX !== 0 && deltaY !== 0) {
-            const angle = Math.atan2(-deltaY, deltaX);
-            gameLogic.player.setAngle(angle);
+        if (!gameLogic.player.held && bodyOfCollision) {
+            gameLogic.player.setVelocity(0, 0);
+
+            gameLogic.player.held = true;
+            prevPointerMovement = performance.now();
+
+            prevWorldX = worldX;
+            prevWorldY = worldY;
+        } else if (gameLogic.player.held) {
+            const deltaX = worldX - prevWorldX;
+            const deltaY = worldY - prevWorldY;
+
+            if (deltaX !== 0 && deltaY !== 0) {
+                const angle = Math.atan2(-deltaY, deltaX);
+                gameLogic.player.setAngle(angle);
+            }
+
+            const now = performance.now();
+
+            if (bodyOfCollision === null) {
+                gameLogic.player.held = false;
+            } else {
+                gameLogic.player.moveBySteps(gameLogic, deltaX, deltaY);
+            }
+
+            const deltaTime = (now - prevPointerMovement) / 1000;
+            const fling = [deltaX / deltaTime, deltaY / deltaTime];
+            let flingSpeed = normalize(fling);
+            flingSpeed = Math.min(flingSpeed, 50); //max speed of 200 player height per second
+            fling[0] *= flingSpeed;
+            fling[1] *= flingSpeed;
+            gameLogic.player.setVelocity(...fling);
+
+            prevWorldX = worldX;
+            prevWorldY = worldY;
+            prevPointerMovement = now;
         }
+    }
 
-        if (playerBodyIndex < 0) {
-            gameLogic.player.held = false;
-        } else {
-            gameLogic.player.addPosition(deltaX, deltaY);
-        }
-
-        const now = performance.now();
-        const deltaTime = (now - prevPointerMovement) / 1000;
-        prevPointerMovement = now;
-
-        const fling = [deltaX / deltaTime, deltaY / deltaTime];
-        let flingSpeed = normalize(fling);
-        flingSpeed = Math.min(flingSpeed, 50); //max speed of 200 player height per second
-        fling[0] *= flingSpeed;
-        fling[1] *= flingSpeed;
-        gameLogic.player.setVelocity(...fling);
-
-        this.x = worldX;
-        this.y = worldY;
+    function onpointerup() {
+        gameLogic.player.held = false;
     }
 }
 
-const onpointerup = () => {
-    gameLogic.player.held = false;
-
-    if (editorOpened) {
-        gameLogic.pointerUpWithEditorOpened();
-        return;
+document.addEventListener("keydown", function (event) {
+    if (event.key >= '0' && event.key <= '9') {
+        const tickRateScale = Math.pow(1 / 2, parseInt(event.key));
+        setTickRateScale(tickRateScale, gameLogic);
     }
-}
+
+    if (event.key === ".") {
+        gameLogic.togglePhysics();
+    }
+});
+
+document.addEventListener("wheel", function (event) {
+    if (event.deltaY > 0) {
+        ++cameraZoomOut;
+    } else {
+        --cameraZoomOut;
+    }
+
+    const scale = Math.pow(2, cameraZoomOut / 4);
+    camera[2] = DEFAULT_CAMERA_DISTANCE * scale;
+    console.log("camera distance", (scale * 100).toFixed(1), "%");
+})
 
 function getWorldSpace(x, y) {
     x = -1 + x / canvas.clientWidth * 2;
     y = 1 - y / canvas.clientHeight * 2;
-    
+
     const direction = [camTarget[0] - camera[0], camTarget[1] - camera[1], -camera[2]];
     Mat4.lookAt(viewMatrix, [0, 0, 0], direction, cameraUp);
     Mat4.multiply(viewPerspectiveMatrix, perspectiveMatrix, viewMatrix);
