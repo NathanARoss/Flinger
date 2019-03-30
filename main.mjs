@@ -1,8 +1,6 @@
 import {
     Mat4,
-    Vec4,
     normalize,
-    reflect
 } from "./matrix-math.mjs";
 
 import {
@@ -17,17 +15,13 @@ import {
 const debugText = document.getElementById("debugText");
 
 const vsSource =
-    `attribute vec4 aPosition;
-attribute float aPackedColor;
-uniform mat4 uMVPMatrix;
+    `uniform mat4 uMVPMatrix;
+attribute vec4 aPosition;
+attribute lowp vec3 aColor;
 varying lowp vec3 vColor;
 void main(void) {
     gl_Position = uMVPMatrix * aPosition;
-    vec3 color; //extract colors from 0bBBBBBGGGGGGRRRRR
-    color.b = floor(aPackedColor / 32.0 / 64.0);
-    color.g = floor(aPackedColor / 32.0) - color.b * 64.0;
-    color.r = aPackedColor - color.g * 32.0 - color.b * 32.0 * 64.0;
-    vColor = color / vec3(31.0, 63.0, 31.0);
+    vColor = aColor;
 }`;
 
 const fsSource =
@@ -75,7 +69,7 @@ const programInfo = {
     program: shaderProgram,
     attribLocations: {
         position: gl.getAttribLocation(shaderProgram, 'aPosition'),
-        packedColor: gl.getAttribLocation(shaderProgram, 'aPackedColor'),
+        color: gl.getAttribLocation(shaderProgram, 'aColor'),
     },
     uniformLocations: {
         mvpMatrix: gl.getUniformLocation(shaderProgram, 'uMVPMatrix'),
@@ -215,7 +209,7 @@ function drawScene(timestamp) {
 
     gl.useProgram(programInfo.program);
     gl.enableVertexAttribArray(programInfo.attribLocations.position);
-    gl.enableVertexAttribArray(programInfo.attribLocations.packedColor);
+    gl.enableVertexAttribArray(programInfo.attribLocations.color);
 
     {
         const facingRight = gameLogic.player.angle < Math.PI / 2 && gameLogic.player.angle > -Math.PI / 2;
@@ -236,7 +230,7 @@ function drawScene(timestamp) {
     drawBackgroundGrid();
 
     gl.disableVertexAttribArray(programInfo.attribLocations.position);
-    gl.disableVertexAttribArray(programInfo.attribLocations.packedColor);
+    gl.disableVertexAttribArray(programInfo.attribLocations.color);
 
     requestAnimationFrame(drawScene);
 }
@@ -252,8 +246,8 @@ function drawModel(model, position, scale, rotationAngle) {
     gl.uniformMatrix4fv(programInfo.uniformLocations.mvpMatrix, false, tempMatrix.data);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, model.buffer);
-    gl.vertexAttribPointer(programInfo.attribLocations.position, 2, gl.BYTE, false, 4, 0);
-    gl.vertexAttribPointer(programInfo.attribLocations.packedColor, 1, gl.UNSIGNED_SHORT, false, 4, 2);
+    gl.vertexAttribPointer(programInfo.attribLocations.position, 2, gl.BYTE, false, 8, 0);
+    gl.vertexAttribPointer(programInfo.attribLocations.color, 3, gl.UNSIGNED_BYTE, true, 8, 4);
     gl.drawArrays(model.mode, 0, model.vertexCount);
 }
 

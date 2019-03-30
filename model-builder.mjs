@@ -1,4 +1,4 @@
-export function initCircle(gl, iterations, r, g, b) {
+export function initCircle(gl, iterations, red, green, blue) {
     if (typeof iterations !== "number" || iterations < 1)
         iterations = 1;
 
@@ -11,19 +11,25 @@ export function initCircle(gl, iterations, r, g, b) {
         vertexesNeededThisIteration *= 2;
     }
 
-    const model = new Int8Array(count * 4);
+    const model = new Int8Array(count * 8);
     let i = 0;
     const radius = 127;
 
-    const [u, v] = packColors(r, g, b);
+    const r = (red * 255) | 0;
+    const g = (green * 255) | 0;
+    const b = (blue * 255) | 0;
 
     //first iteration
     for (let vertex = 0; vertex < 3; ++vertex) {
         let theta = Math.PI * 2 / 3 * vertex;
         model[i++] = Math.cos(theta) * radius;
         model[i++] = Math.sin(theta) * radius;
-        model[i++] = u;
-        model[i++] = v;
+        model[i++] = 0;
+        model[i++] = 0;
+        model[i++] = r;
+        model[i++] = g;
+        model[i++] = b;
+        model[i++] = 0;
     }
 
     //further iterations subdivide the exposed sides into more polygons
@@ -34,8 +40,12 @@ export function initCircle(gl, iterations, r, g, b) {
                 let theta = Math.PI * (p * 2 + vertex) / polygons;
                 model[i++] = Math.cos(theta) * radius;
                 model[i++] = Math.sin(theta) * radius;
-                model[i++] = u;
-                model[i++] = v;
+                model[i++] = 0;
+                model[i++] = 0;
+                model[i++] = r;
+                model[i++] = g;
+                model[i++] = b;
+                model[i++] = 0;
             }
         }
 
@@ -48,36 +58,54 @@ export function initCircle(gl, iterations, r, g, b) {
 
     return {
         buffer,
-        vertexCount: model.length / 4,
+        vertexCount: model.length / 8,
         mode: gl.TRIANGLES
     };
 }
 
-export function initBox(gl, r, g, b) {
-    const model = new Int8Array(4 * 4);
-    i = 0;
+export function initBox(gl, red, green, blue) {
+    const model = new Int8Array(4 * 8);
+    let i = 0;
 
-    const [u, v] = packColors(r, g, b);
+    const r = (red * 255) | 0;
+    const g = (green * 255) | 0;
+    const b = (blue * 255) | 0;
 
     model[i++] = +127;
     model[i++] = +127;
-    model[i++] = u;
-    model[i++] = v;
+    model[i++] = 0;
+    model[i++] = 0;
+    model[i++] = r;
+    model[i++] = g;
+    model[i++] = b;
+    model[i++] = 0;
 
     model[i++] = -127;
     model[i++] = +127;
-    model[i++] = u;
-    model[i++] = v;
+    model[i++] = 0;
+    model[i++] = 0;
+    model[i++] = r;
+    model[i++] = g;
+    model[i++] = b;
+    model[i++] = 0;
 
     model[i++] = +127;
     model[i++] = -127;
-    model[i++] = u;
-    model[i++] = v;
+    model[i++] = 0;
+    model[i++] = 0;
+    model[i++] = r;
+    model[i++] = g;
+    model[i++] = b;
+    model[i++] = 0;
 
     model[i++] = -127;
     model[i++] = -127;
-    model[i++] = u;
-    model[i++] = v;
+    model[i++] = 0;
+    model[i++] = 0;
+    model[i++] = r;
+    model[i++] = g;
+    model[i++] = b;
+    model[i++] = 0;
 
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -85,7 +113,7 @@ export function initBox(gl, r, g, b) {
 
     return {
         buffer,
-        vertexCount: model.length / 4,
+        vertexCount: model.length / 8,
         mode: gl.TRIANGLE_STRIP
     };
 }
@@ -125,35 +153,49 @@ export function initTexturedBox(gl, u1, v1, u2, v2) {
     };
 }
 
-export function initPolygon(gl, verticies, r, g, b) {
+export function initPolygon(gl, verticies, red, green, blue) {
     const vertexCount = verticies.length / 2;
     const polygonCount = vertexCount - 2;
-    const model = new Int8Array(polygonCount * 3 * 4);
-    let used = 0;
+    const model = new Int8Array(polygonCount * 3 * 8);
+    let i = 0;
 
-    const [u, v] = packColors(r, g, b);
+    const r = (red * 255) | 0;
+    const g = (green * 255) | 0;
+    const b = (blue * 255) | 0;
 
     let fail = 100;
     while (verticies.length > 4 && --fail >= 0) {
-        for (let i = 0; i < verticies.length; i += 2) {
-            const clockwise = ((verticies[i + 3] - verticies[i + 1]) * (verticies[i + 4] - verticies[i + 2]) -
-                (verticies[i + 2] - verticies[i + 0]) * (verticies[i + 5] - verticies[i + 3])) > 0;
+        for (let j = 0; j < verticies.length; j += 2) {
+            const clockwise = ((verticies[j + 3] - verticies[j + 1]) * (verticies[j + 4] - verticies[j + 2]) -
+                (verticies[j + 2] - verticies[j + 0]) * (verticies[j + 5] - verticies[j + 3])) > 0;
 
             if (clockwise) {
-                model[used++] = verticies[i];
-                model[used++] = verticies[i + 1];
-                model[used++] = u;
-                model[used++] = v;
+                model[i++] = verticies[j];
+                model[i++] = verticies[j + 1];
+                model[i++] = 0;
+                model[i++] = 0;
+                model[i++] = r;
+                model[i++] = g;
+                model[i++] = b;
+                model[i++] = 0;
 
-                model[used++] = verticies[i + 2];
-                model[used++] = verticies[i + 3];
-                model[used++] = u;
-                model[used++] = v;
+                model[i++] = verticies[j + 2];
+                model[i++] = verticies[j + 3];
+                model[i++] = 0;
+                model[i++] = 0;
+                model[i++] = r;
+                model[i++] = g;
+                model[i++] = b;
+                model[i++] = 0;
 
-                model[used++] = verticies[i + 4];
-                model[used++] = verticies[i + 5];
-                model[used++] = u;
-                model[used++] = v;
+                model[i++] = verticies[j + 4];
+                model[i++] = verticies[j + 5];
+                model[i++] = 0;
+                model[i++] = 0;
+                model[i++] = r;
+                model[i++] = g;
+                model[i++] = b;
+                model[i++] = 0;
 
                 verticies.splice(i + 2, 2);
                 break;
@@ -167,14 +209,7 @@ export function initPolygon(gl, verticies, r, g, b) {
 
     return {
         buffer,
-        vertexCount: model.length / 4,
+        vertexCount: model.length / 8,
         mode: gl.TRIANGLES
     };
-}
-
-export function packColors(r, g, b) {
-    const packedColor = (r * 31) | 0 | ((g * 63) | 0) << 5 | ((b * 31) | 0) << 11;
-    const u = packedColor & 0xFF;
-    const v = packedColor >>> 8;
-    return [u, v];
 }
