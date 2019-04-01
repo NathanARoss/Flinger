@@ -194,7 +194,7 @@ function drawScene(timestamp) {
     const playerX = gameLogic.getX(gameLogic.player, timestamp);
     const playerY = gameLogic.getY(gameLogic.player, timestamp);
 
-    const progress = Math.min((timestamp - previousFrameTime) / 250, 1);
+    const progress = Math.max((timestamp - previousFrameTime) / 250, 1);
     camera[0] = camera[0] + (gameLogic.player.gravityX - camera[0]) * progress;
     camera[1] = camera[1] + (gameLogic.player.gravityY - camera[1]) * progress;
 
