@@ -194,7 +194,7 @@ function drawScene(timestamp) {
     const playerX = gameLogic.getX(gameLogic.player, timestamp);
     const playerY = gameLogic.getY(gameLogic.player, timestamp);
 
-    const progress = (timestamp - previousFrameTime) / 250;
+    const progress = Math.max((timestamp - previousFrameTime) / 250, 1);
     camera[0] = camera[0] + (gameLogic.player.gravityX - camera[0]) * progress;
     camera[1] = camera[1] + (gameLogic.player.gravityY - camera[1]) * progress;
 
@@ -419,7 +419,7 @@ document.addEventListener("wheel", function (event) {
     console.log("camera distance", (scale * 100).toFixed(1), "%");
 })
 
-function getWorldSpace(x, y) {
+function getWorldSpaceFromClipspace(x, y) {
     x = -1 + x / canvas.clientWidth * 2;
     y = 1 - y / canvas.clientHeight * 2;
 
