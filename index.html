@@ -1,48 +1,46 @@
 <html>
-    <head>
-        <title>Flinger</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        <style>
-            body {
-                margin: 0;
-                width: 100vw;
-                height: 100vh;
-                overflow: hidden;
-            }
+<head>
+    <title>Flinger</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-            canvas {
-                margin: 0;
-                border: 0;
-                width: 100vw;
-                height: 100vh;
-            }
+    <style>
+        body {
+            margin: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
 
-            #debugText {
-                position: absolute;
-                padding: 0.5em;
-                bottom: 0;
-                left: 0;
-                margin: 0;
-                color: white;
-                background-color: rgba(0, 0, 0, 0.25);
-                white-space: pre;
-                -webkit-user-select: none;
-                -moz-user-select: none;
-                -ms-user-select: none;
-                user-select: none;
-            }
-        </style>
-    </head>
+        canvas {
+            margin: 0;
+            border: 0;
+            width: 100vw;
+            height: 100vh;
+        }
 
-    <body>
-        <canvas></canvas>
-        <p id="debugText"></p>
+        #debugText {
+            position: absolute;
+            padding: 0.5em;
+            bottom: 0;
+            left: 0;
+            margin: 0;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.25);
+            white-space: pre;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
 
-        <script src="game-logic.js"></script>
-        <script src="matrix-math.js"></script>
-        <script src="model-builder.js"></script>
-        <script src="main.js"></script>
-    </body>
+<body>
+    <canvas></canvas>
+    <p id="debugText"></p>
+    <script type="module" src="main.mjs"></script>
+</body>
+
 </html>

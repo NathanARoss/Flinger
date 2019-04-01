@@ -1,4 +1,4 @@
-class Mat4 {
+export class Mat4 {
     constructor() {
         this.data = new Float32Array(16);
         this.data[0] = 1;
@@ -20,16 +20,16 @@ class Mat4 {
     }
 
     static lookAt(out, eye, center, up) {
-        /* taken from gl-matrix.js library */    
+        /* taken from gl-matrix.js library */
         let z0 = eye[0] - center[0];
         let z1 = eye[1] - center[1];
         let z2 = eye[2] - center[2];
-    
+
         let len = 1 / Math.sqrt(z0 * z0 + z1 * z1 + z2 * z2);
         z0 *= len;
         z1 *= len;
         z2 *= len;
-    
+
         let x0 = up[1] * z2 - up[2] * z1;
         let x1 = up[2] * z0 - up[0] * z2;
         let x2 = up[0] * z1 - up[1] * z0;
@@ -44,11 +44,11 @@ class Mat4 {
             x1 *= len;
             x2 *= len;
         }
-    
+
         let y0 = z1 * x2 - z2 * x1;
         let y1 = z2 * x0 - z0 * x2;
         let y2 = z0 * x1 - z1 * x0;
-    
+
         len = Math.sqrt(y0 * y0 + y1 * y1 + y2 * y2);
         if (!len) {
             len = 1 / len;
@@ -56,7 +56,7 @@ class Mat4 {
             y1 *= len;
             y2 *= len;
         }
-    
+
         out.data[0] = x0;
         out.data[1] = y0;
         out.data[2] = z0;
@@ -77,19 +77,19 @@ class Mat4 {
 
     static multiply(out, a, b) {
         for (let i = 0; i < 16; ++i) {
-            out.data[i] = b.data[0 | i & ~3] * a.data[0 | i & 3]
-                        + b.data[1 | i & ~3] * a.data[4 | i & 3]
-                        + b.data[2 | i & ~3] * a.data[8 | i & 3]
-                        + b.data[3 | i & ~3] * a.data[12 | i & 3];
+            out.data[i] = b.data[0 | i & ~3] * a.data[0 | i & 3] +
+                b.data[1 | i & ~3] * a.data[4 | i & 3] +
+                b.data[2 | i & ~3] * a.data[8 | i & 3] +
+                b.data[3 | i & ~3] * a.data[12 | i & 3];
         }
     }
 
     static multiplyVec4(out, mat, vec) {
         for (let i = 0; i < 4; ++i) {
-            out.data[i] = vec.data[0] * mat.data[i]
-                        + vec.data[1] * mat.data[4 + i]
-                        + vec.data[2] * mat.data[8 + i]
-                        + vec.data[3] * mat.data[12 + i]
+            out.data[i] = vec.data[0] * mat.data[i] +
+                vec.data[1] * mat.data[4 + i] +
+                vec.data[2] * mat.data[8 + i] +
+                vec.data[3] * mat.data[12 + i]
         }
     }
 
@@ -114,12 +114,12 @@ class Mat4 {
     }
 
     static rotate(out, a, rad, axis) {
-        /* taken from gl-matrix.js library */    
+        /* taken from gl-matrix.js library */
         const [x, y, z] = axis;
         const s = Math.sin(rad);
         const c = Math.cos(rad);
         const t = 1 - c;
-    
+
         // Construct the elements of the rotation matrix
         const b = [];
         b[0] = x * x * t + c;
@@ -134,9 +134,9 @@ class Mat4 {
 
         const copy = a.data.slice();
         for (let i = 0; i < 12; ++i) {
-            out.data[i] = copy[i & 3] * b[~~(i/4)*3] + copy[4 | i & 3] * b[~~(i/4)*3 + 1] + copy[8 | i & 3] * b[~~(i/4)*3 + 2];
+            out.data[i] = copy[i & 3] * b[~~(i / 4) * 3] + copy[4 | i & 3] * b[~~(i / 4) * 3 + 1] + copy[8 | i & 3] * b[~~(i / 4) * 3 + 2];
         }
-    
+
         if (a !== out) { // If the source and destination differ, copy the unchanged last row
             out.data.set(copy.slice(12), 12);
         }
@@ -146,7 +146,7 @@ class Mat4 {
     static invert(out, a) {
         /* taken from gl-matrix.js library */
         let [a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33] = a.data;
-    
+
         let b00 = a00 * a11 - a01 * a10;
         let b01 = a00 * a12 - a02 * a10;
         let b02 = a00 * a13 - a03 * a10;
@@ -159,15 +159,15 @@ class Mat4 {
         let b09 = a21 * a32 - a22 * a31;
         let b10 = a21 * a33 - a23 * a31;
         let b11 = a22 * a33 - a23 * a32;
-    
+
         // Calculate the determinant
         let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
-    
-        if (!det) { 
-            return null; 
+
+        if (!det) {
+            return null;
         }
         det = 1.0 / det;
-    
+
         out.data[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
         out.data[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
         out.data[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
@@ -208,7 +208,7 @@ Mat4.temp = new Mat4();
 
 
 
-class Vec4 {
+export class Vec4 {
     constructor(x = 0, y = 0, z = 0, w = 0) {
         this.data = new Float32Array(4);
         this.data.set([x, y, z, w]);
@@ -216,14 +216,9 @@ class Vec4 {
 }
 
 
-function dotFunction(accumulator, currentValue) {
-    return accumulator + currentValue**2;
-}
-
-function normalize(arr) {
-    const dot = arr.reduce(dotFunction, 0);
-    const magnitude = Math.sqrt(dot);
-    if (dot !== 0) {
+export function normalize(arr) {
+    const magnitude = Math.hypot(...arr);
+    if (magnitude !== 0) {
         for (let i = 0; i < arr.length; ++i) {
             arr[i] /= magnitude;
         }
@@ -231,7 +226,7 @@ function normalize(arr) {
     return magnitude;
 }
 
-function reflect(incoming, normal) {
+export function reflect(incoming, normal) {
     const dot = incoming[0] * normal[0] + incoming[1] * normal[1];
     const out = [];
     out[0] = incoming[0] - 2 * dot * normal[0];

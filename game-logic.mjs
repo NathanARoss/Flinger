@@ -1,9 +1,19 @@
-class GameLogic {
-    constructor() {
+import {
+    initCircle,
+    initPolygon,
+} from "./model-builder.mjs";
+
+import {
+    normalize,
+    reflect,
+} from "./matrix-math.mjs";
+
+export class GameLogic {
+    constructor(gl) {
         const fishModel = initCircle(gl, 5, 1, 1, 0);
         //const waterBox = initBox(gl, 0, 0.412, 0.58);
         const waterCircle = initCircle(gl, 5, 0, 0.412, 0.58);
-        
+
         this.player = new PhysicsObj(0, 0, 0.5, fishModel);
 
         this.bodiesOfWater = [];
@@ -20,7 +30,7 @@ class GameLogic {
             -10, 14,
             -10, 16,
         ];
-        this.rigidBodies.push(new StaticRigidBody(0, 0, verticies, 255, [1, 1, 1]))
+        this.rigidBodies.push(new StaticRigidBody(gl, 0, 0, verticies, 255, [1, 1, 1]))
 
         verticies = [
             -29, 35,
@@ -28,48 +38,39 @@ class GameLogic {
             -31, 24,
             -31, 36,
         ]
-        this.rigidBodies.push(new StaticRigidBody(0, 0, verticies, 255, [1, 1, 1]))
+        this.rigidBodies.push(new StaticRigidBody(gl, 0, 0, verticies, 255, [1, 1, 1]))
 
         this.lastTick = -1;
-        this.MS_PER_TICK = 0;
-        this.TICKS_PER_SECOND = 0;
-        this.setTickRateScale(1);
     }
 
     tick() {
-        this.player.tick();
+        this.player.tick(this);
     }
 
     performTicks(timestamp) {
-        this.lastTick = Math.max(this.lastTick, timestamp - this.MS_PER_TICK * 5);
+        this.lastTick = Math.max(this.lastTick, timestamp - msPerTick * 5);
 
-        while (this.lastTick + this.MS_PER_TICK < timestamp) {
-            this.tick();
-            this.lastTick += this.MS_PER_TICK;
+        while (this.lastTick + msPerTick < timestamp) {
+            this.tick(this);
+            this.lastTick += msPerTick;
         }
     }
 
     getX(physicsObj, timestamp) {
-        return physicsObj.prevX + (physicsObj.x - physicsObj.prevX) * Math.max(0, timestamp - this.lastTick) / this.MS_PER_TICK;
+        return physicsObj.prevX + (physicsObj.x - physicsObj.prevX) * Math.max(0, timestamp - this.lastTick) / msPerTick;
     }
 
     getY(physicsObj, timestamp) {
-        return physicsObj.prevY + (physicsObj.y - physicsObj.prevY) * Math.max(0, timestamp - this.lastTick) / this.MS_PER_TICK;
+        return physicsObj.prevY + (physicsObj.y - physicsObj.prevY) * Math.max(0, timestamp - this.lastTick) / msPerTick;
     }
 
     getBodyOfWater(circle) {
-        for (let i = 0; i < this.bodiesOfWater.length; ++i) {
-            if (this.bodiesOfWater[i].isColliding(circle)) {
-                return i;
+        for (const body of this.bodiesOfWater) {
+            if (body.isColliding(circle)) {
+                return body;
             }
         }
-        return -1;
-    }
-
-    setTickRateScale(scale) {
-        this.TICKS_PER_SECOND = 50 * scale;
-        this.MS_PER_TICK = 1000 / this.TICKS_PER_SECOND;
-        this.lastTick = performance.now();
+        return null;
     }
 
     togglePhysics() {
@@ -81,7 +82,22 @@ class GameLogic {
     }
 }
 
-class PhysicsObj {
+//tick rate is global because it is a debug feature
+let ticksPerSecond = 0;
+let msPerTick = 0;
+
+export function setTickRateScale(scale, gameLogic) {
+    ticksPerSecond = 50 * scale;
+    msPerTick = 1000 / ticksPerSecond;
+
+    if (gameLogic) {
+        gameLogic.lastTick = performance.now();
+    }
+}
+
+setTickRateScale(1);
+
+export class PhysicsObj {
     constructor(x = 0, y = 0, r = 1, model, vx = 0, vy = 0, angle = 0) {
         this.x = x;
         this.y = y;
@@ -96,11 +112,12 @@ class PhysicsObj {
         this.gravityY = 0;
     }
 
-    tick() {
+    tick(gameLogic) {
         this.prevX = this.x;
         this.prevY = this.y;
-        
-        debugText.textContent = `position: (${this.x.toFixed(2)}, ${this.y.toFixed(2)})\nvelocity: (${(this.vx * gameLogic.TICKS_PER_SECOND).toFixed(2)}, ${(this.vy * gameLogic.TICKS_PER_SECOND).toFixed(2)})`;
+
+        debugText.textContent = "position: (" + this.x.toFixed(2) + ", " + this.y.toFixed(2) + ")\n" +
+            "velocity: (" + (this.vx * ticksPerSecond).toFixed(2) + ", " + (this.vy * ticksPerSecond).toFixed(2) + ")";
 
         if (!this.held) {
             const friction = 255 / 256;
@@ -110,13 +127,16 @@ class PhysicsObj {
             this.vx = (this.vx + gravity[0] / 64) * friction;
             this.vy = (this.vy + gravity[1] / 64) * friction;
 
-            this.addPosition(this.vx, this.vy);
+            this.moveBySteps(gameLogic, this.vx, this.vy);
 
-            const bodyOfWater = gameLogic.getBodyOfWater({x: this.x, y: this.y, r: this.r / 4});
-            if (bodyOfWater >= 0) {
+            const body = gameLogic.getBodyOfWater({
+                x: this.x,
+                y: this.y,
+                r: this.r / 4
+            });
+            if (body) {
                 this.vx *= 0.8;
                 this.vy *= 0.8;
-                const body = gameLogic.bodiesOfWater[bodyOfWater];
                 this.gravityX = body.x;
                 this.gravityY = body.y;
             }
@@ -128,7 +148,7 @@ class PhysicsObj {
         this.y = y;
     }
 
-    addPosition(dx, dy) {
+    moveBySteps(gameLogic, dx, dy) {
         const steps = Math.ceil(Math.max(Math.abs(dx / this.r), Math.abs(dy / this.r)));
         const stepX = dx / steps;
         const stepY = dy / steps;
@@ -137,7 +157,7 @@ class PhysicsObj {
             this.x += stepX;
             this.y += stepY;
 
-            const collisionData = this.getCollisionData();
+            const collisionData = this.getCollisionData(gameLogic);
             if (collisionData) {
                 this.x += collisionData.normal[0] * collisionData.magnitude;
                 this.y += collisionData.normal[1] * collisionData.magnitude;
@@ -150,15 +170,15 @@ class PhysicsObj {
     }
 
     setVelocity(vx, vy) {
-        this.vx = vx / gameLogic.TICKS_PER_SECOND;
-        this.vy = vy / gameLogic.TICKS_PER_SECOND;
+        this.vx = vx / ticksPerSecond;
+        this.vy = vy / ticksPerSecond;
     }
 
     setAngle(angle) {
         this.angle = angle;
     }
 
-    getCollisionData() {
+    getCollisionData(gameLogic) {
         for (const body of gameLogic.rigidBodies) {
             const collisionData = body.getCollisionData(this);
             if (collisionData)
@@ -169,7 +189,7 @@ class PhysicsObj {
     }
 }
 
-class StaticSquare {
+export class StaticSquare {
     constructor(x = 0, y = 0, width, height, model) {
         this.x = x;
         this.y = y;
@@ -182,15 +202,15 @@ class StaticSquare {
         const cornerX = Math.max(0, Math.abs(circle.x - this.x) - this.width / 2);
         const cornerY = Math.max(0, Math.abs(circle.y - this.y) - this.height / 2);
 
-        return cornerX**2 + cornerY**2 < circle.r**2;
+        return cornerX ** 2 + cornerY ** 2 < circle.r ** 2;
     }
-    
+
     get scale() {
-      return [this.width, this.height];
+        return [this.width, this.height];
     }
 }
 
-class StaticCircle {
+export class StaticCircle {
     constructor(x = 0, y = 0, radius, model) {
         this.x = x;
         this.y = y;
@@ -202,31 +222,35 @@ class StaticCircle {
         const dX = circle.x - this.x
         const dY = circle.y - this.y;
 
-        return dX**2 + dY**2 < (circle.r + this.r)**2;
+        return dX ** 2 + dY ** 2 < (circle.r + this.r) ** 2;
     }
-    
+
     get scale() {
-      return [this.r * 2, this.r * 2];
+        return [this.r * 2, this.r * 2];
     }
 }
 
-class StaticRigidBody {
-    constructor(x, y, verticies, scale, color) {
+export class StaticRigidBody {
+    constructor(gl, x, y, verticies, scale, color) {
         this.x = x;
         this.y = y;
         this.verticies = [];
         for (let i = 0; i < verticies.length; i += 2) {
             this.verticies[i] = verticies[i] / 254 * scale + x;
-            this.verticies[i+1] = verticies[i+1] / 254 * scale + y;
+            this.verticies[i + 1] = verticies[i + 1] / 254 * scale + y;
         }
         this.verticies.push(this.verticies[0], this.verticies[1]);
 
-        this.model = initPolygon(verticies, ...color);
+        this.model = initPolygon(gl, verticies, ...color);
         this.scale = scale;
     }
 
     getCollisionData(physicsObj) {
-        const {x, y, r} = physicsObj;
+        const {
+            x,
+            y,
+            r
+        } = physicsObj;
         const r2 = r * r;;
 
         for (let i = 0, length = this.verticies.length; i < length; i += 2) {
@@ -246,7 +270,10 @@ class StaticRigidBody {
                     normalize(normal);
 
                     const magnitude = r - Math.sqrt(dot);
-                    return {normal, magnitude};
+                    return {
+                        normal,
+                        magnitude
+                    };
                 }
             }
             //corner
@@ -255,10 +282,13 @@ class StaticRigidBody {
 
                 const dx = x - px;
                 const dy = y - py;
-                if (dx**2 + dy**2 < r2) {
+                if (dx ** 2 + dy ** 2 < r2) {
                     const normal = [dx, dy];
                     const magnitude = normalize(normal);
-                    return {normal, magnitude};
+                    return {
+                        normal,
+                        magnitude
+                    };
                 }
             }
         }
